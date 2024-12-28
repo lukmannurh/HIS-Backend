@@ -1,0 +1,47 @@
+# docker-compose.yml
+
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: hoax-checker-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: hoax-checker-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      # dsb ...
+    depends_on:
+      - db
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: hoax-checker-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "admin"  # or from env
+    depends_on:
+      - db
+    # Anda bisa menambahkan volum untuk persist data grafana
+
+volumes:
+  db_data:
