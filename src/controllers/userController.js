@@ -127,3 +127,48 @@ export const updateProfile = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+/**
+ * GET user by ID (Admin, Owner, atau si user itu sendiri)
+ * - Admin/Owner bisa melihat user apa pun
+ * - User biasa hanya bisa lihat dirinya sendiri
+ */
+export async function getUserById(req, res) {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.userId; // dari authMiddleware
+    const requestingUserRole = req.userRole; // jika Anda simpan role di JWT
+
+    const targetUser = await User.findByPk(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Role-based logic:
+    // - If admin or owner => allowed
+    // - If user => only allowed if userId === requestingUserId
+    if (
+      requestingUserRole !== "admin" &&
+      requestingUserRole !== "owner" &&
+      requestingUserId !== userId
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Opsi: Pilih field2 yang mau ditampilkan
+    return res.json({
+      id: targetUser.id,
+      username: targetUser.username,
+      role: targetUser.role,
+      fullName: targetUser.fullName,
+      address: targetUser.address,
+      age: targetUser.age,
+      gender: targetUser.gender,
+      createdAt: targetUser.createdAt,
+      updatedAt: targetUser.updatedAt,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
