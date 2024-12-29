@@ -15,9 +15,9 @@ router.post(
   authMiddleware,
   adminMiddleware,
   [
-    body('username').isString().notEmpty(),
-    body('password').isLength({ min: 6 }),
-    body('role').optional().isIn(['admin', 'user']),
+    body('username').isString().notEmpty().withMessage('Username wajib diisi dan harus berupa string'),
+    body('password').isLength({ min: 6 }).withMessage('Password harus minimal 6 karakter'),
+    body('role').optional().isIn(['admin', 'user']).withMessage("Role harus 'admin' atau 'user'"),
   ],
   validationMiddleware,
   register
@@ -28,8 +28,8 @@ router.post(
   "/login",
   loginLimiter, // Terapkan rate limiter pada login
   [
-    body('username').isString().notEmpty(),
-    body('password').isString().notEmpty(),
+    body('username').isString().notEmpty().withMessage('Username wajib diisi dan harus berupa string'),
+    body('password').isString().notEmpty().withMessage('Password wajib diisi dan harus berupa string'),
   ],
   validationMiddleware,
   login
@@ -39,7 +39,7 @@ router.post(
 router.post(
   "/refresh",
   [
-    body('refreshToken').isString().notEmpty(),
+    body('refreshToken').isString().notEmpty().withMessage('Refresh token wajib diisi dan harus berupa string'),
   ],
   validationMiddleware,
   refresh

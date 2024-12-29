@@ -5,7 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+     "migrate": "sequelize-cli db:migrate --config sequelize.config.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -26,6 +29,18 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.22",
-    "sequelize-cli": "^6.6.1"
+    "sequelize-cli": "^6.6.1",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js",
+      "mjs"
+    ],
+    "transform": {},
+    "coverageDirectory": "coverage",
+    "collectCoverage": true
   }
 }

@@ -4,20 +4,21 @@ dotenv.config();
 import app from "./app.js";
 import db from "./models/index.js";
 import { createStarterAccounts } from "./utils/createStarterAccounts.js";
+import logger from "./middlewares/loggingMiddleware.js";
 
 const PORT = process.env.PORT || 3000;
 
 db.sequelize
   .sync()
   .then(async () => {
-    console.log("Database synced successfully!");
+    logger.info("Database berhasil disinkronisasi!");
 
     await createStarterAccounts();
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      logger.info(`Server berjalan di port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.error("Error syncing database:", err);
+    logger.error("Error sinkronisasi database:", err);
   });

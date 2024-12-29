@@ -1,7 +1,17 @@
-// Jenkinsfile
-
 pipeline {
     agent any
+
+    environment {
+        // Mendefinisikan versi Node.js
+        NODE_VERSION = '20.x'
+        // Mendefinisikan variabel lingkungan (jika ada)
+        // Untuk keamanan, variabel sensitif harus disimpan di kredensial Jenkins
+    }
+
+    tools {
+        // Instalasi Node.js menggunakan plugin NodeJS
+        nodejs NODE_VERSION
+    }
 
     stages {
         stage('Checkout') {
@@ -11,15 +21,21 @@ pipeline {
             }
         }
 
-        stage('Install dependencies') {
+        stage('Install Dependencies') {
             steps {
                 sh 'npm install'
             }
         }
 
-        stage('Test') {
+        stage('Lint') {
             steps {
-                sh 'npm test'
+                sh 'npm run lint'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'npm run test'
             }
         }
 
@@ -29,7 +45,6 @@ pipeline {
             }
         }
 
-        // Optional: push image to registry
         stage('Push Docker Image') {
             when {
                 expression { return env.PUSH_DOCKER == 'true' }
@@ -43,10 +58,9 @@ pipeline {
             }
         }
 
-        // Optional: Deploy using docker-compose
         stage('Deploy') {
             steps {
-                // Example: 
+                // Deploy menggunakan docker-compose
                 sh 'docker-compose down'
                 sh 'docker-compose up -d --build'
             }
@@ -55,14 +69,15 @@ pipeline {
 
     post {
         always {
-            // cleanup
+            // Cleanup
             sh 'docker logout || true'
+            cleanWs()
         }
         success {
-            echo 'Pipeline succeeded!'
+            echo 'Pipeline berhasil!'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo 'Pipeline gagal!'
         }
     }
 }

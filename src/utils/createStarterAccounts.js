@@ -1,12 +1,13 @@
 import bcrypt from "bcrypt";
 import { User } from "../models/index.js";
+import logger from "../middlewares/loggingMiddleware.js";
 
 export async function createStarterAccounts() {
   try {
     // Cek apakah sudah ada 'owner' di DB
     const ownerExist = await User.findOne({ where: { role: "owner" } });
     if (!ownerExist) {
-      console.log("No Owner found. Creating starter accounts...");
+      logger.info("Tidak ada Owner ditemukan. Membuat akun starter...");
 
       // Owner
       const ownerUsername = "owner";
@@ -44,18 +45,18 @@ export async function createStarterAccounts() {
         fullName: "User Biasa",
       });
 
-      console.log(
-        "Starter accounts created:\n" +
-          "OWNER (owner/owner123)\n" +
-          "ADMIN (admin/admin123)\n" +
-          "USER (user/user123)"
+      logger.info(
+        "Akun starter berhasil dibuat:\n" +
+        "OWNER (username: owner, password: owner123)\n" +
+        "ADMIN (username: admin, password: admin123)\n" +
+        "USER (username: user, password: user123)"
       );
     } else {
-      console.log(
-        "Owner account already exists. Skipping starter accounts creation."
+      logger.info(
+        "Akun owner sudah ada. Melewati pembuatan akun starter."
       );
     }
   } catch (error) {
-    console.error("Error creating starter accounts:", error.message);
+    logger.error(`Error dalam membuat akun starter: ${error.message}`);
   }
 }

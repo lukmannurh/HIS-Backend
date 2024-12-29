@@ -1,14 +1,15 @@
 import db from "../models/index.js";
 import { checkHoax } from "../services/hoaxChecker.js";
+import logger from "../middlewares/loggingMiddleware.js";
 
 const Report = db.Report;
 
 export async function createReport(req, res) {
   try {
-    const { title, content } = req.body;
+    const { title, content, link } = req.body;
     const userId = req.userId;
 
-    const { validationStatus, validationDetails } = await checkHoax(content);
+    const { validationStatus, validationDetails } = await checkHoax(content, link);
 
     const newReport = await Report.create({
       title,
@@ -19,11 +20,11 @@ export async function createReport(req, res) {
     });
 
     return res.status(201).json({
-      message: "Report created successfully",
+      message: "Report berhasil dibuat",
       data: newReport,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in createReport: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -45,7 +46,7 @@ export async function getAllReports(req, res) {
     }
     return res.json(reports);
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in getAllReports: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -58,7 +59,7 @@ export async function getReportById(req, res) {
       include: ["user"],
     });
     if (!report) {
-      return res.status(404).json({ message: "Report not found" });
+      return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
     if (
@@ -71,7 +72,7 @@ export async function getReportById(req, res) {
       return res.status(403).json({ message: "Forbidden" });
     }
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in getReportById: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -82,7 +83,7 @@ export async function deleteReport(req, res) {
     const report = await Report.findByPk(reportId);
 
     if (!report) {
-      return res.status(404).json({ message: "Report not found" });
+      return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
     if (
@@ -91,12 +92,12 @@ export async function deleteReport(req, res) {
       req.userRole === "owner"
     ) {
       await report.destroy();
-      return res.json({ message: "Report deleted successfully" });
+      return res.json({ message: "Report berhasil dihapus" });
     } else {
       return res.status(403).json({ message: "Forbidden" });
     }
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in deleteReport: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }

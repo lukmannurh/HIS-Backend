@@ -1,5 +1,6 @@
 import { User } from "../models/index.js";
 import bcrypt from "bcrypt";
+import logger from "../middlewares/loggingMiddleware.js";
 
 // Hapus user (role=user) oleh admin/owner
 export const deleteUser = async (req, res) => {
@@ -8,20 +9,20 @@ export const deleteUser = async (req, res) => {
     const targetUser = await User.findByPk(userId);
 
     if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
     // Tidak boleh hapus admin/owner di sini
     if (targetUser.role === "admin" || targetUser.role === "owner") {
       return res
         .status(403)
-        .json({ message: "Cannot delete admin or owner via this endpoint" });
+        .json({ message: "Tidak dapat menghapus admin atau owner melalui endpoint ini" });
     }
 
     await targetUser.destroy();
-    return res.json({ message: "User (role=user) deleted successfully" });
+    return res.json({ message: "User (role=user) berhasil dihapus" });
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in deleteUser: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -35,18 +36,18 @@ export const deleteAdmin = async (req, res) => {
     });
 
     if (!targetAdmin) {
-      return res.status(404).json({ message: "Admin not found" });
+      return res.status(404).json({ message: "Admin tidak ditemukan" });
     }
 
     await targetAdmin.destroy();
-    return res.json({ message: "Admin deleted successfully" });
+    return res.json({ message: "Admin berhasil dihapus" });
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in deleteAdmin: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// (Opsional) Admin/Owner bisa list semua user
+// Admin/Owner bisa list semua user
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
@@ -65,7 +66,7 @@ export const getAllUsers = async (req, res) => {
     });
     return res.json(users);
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in getAllUsers: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -86,14 +87,7 @@ export const updateProfile = async (req, res) => {
 
     const currentUser = await User.findByPk(userId);
     if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Hanya user itu sendiri yang boleh update
-    // (kalau mau Admin/Owner bisa update user lain, perlu logika tambahan)
-    // Di sini, userId dari token harus sama dengan currentUser.id
-    if (currentUser.id !== userId) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
     // Update fields
@@ -111,7 +105,7 @@ export const updateProfile = async (req, res) => {
     await currentUser.save();
 
     return res.json({
-      message: "Profile updated successfully",
+      message: "Profil berhasil diperbarui",
       data: {
         id: currentUser.id,
         username: currentUser.username,
@@ -123,7 +117,7 @@ export const updateProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in updateProfile: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -137,11 +131,11 @@ export async function getUserById(req, res) {
   try {
     const { userId } = req.params;
     const requestingUserId = req.userId; // dari authMiddleware
-    const requestingUserRole = req.userRole; // jika Anda simpan role di JWT
+    const requestingUserRole = req.userRole; // role dari JWT
 
     const targetUser = await User.findByPk(userId);
     if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
     // Role-based logic:
@@ -155,7 +149,7 @@ export async function getUserById(req, res) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Opsi: Pilih field2 yang mau ditampilkan
+    // Pilih field yang ditampilkan
     return res.json({
       id: targetUser.id,
       username: targetUser.username,
@@ -168,7 +162,7 @@ export async function getUserById(req, res) {
       updatedAt: targetUser.updatedAt,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(`Error in getUserById: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }

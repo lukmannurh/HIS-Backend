@@ -6,7 +6,7 @@ import ownerMiddleware from "../middlewares/ownerMiddleware.js";
 
 const router = express.Router();
 
-// GET all users (opsional, admin/owner)
+// GET all users (admin/owner)
 router.get("/", authMiddleware, adminMiddleware, userController.getAllUsers);
 
 // GET user by ID
@@ -28,7 +28,7 @@ router.delete(
   userController.deleteAdmin
 );
 
-// UPDATE profile (owner/admin/user -> update diri sendiri)
+// UPDATE profile (update diri sendiri)
 router.put("/profile", authMiddleware, userController.updateProfile);
 
 export default router;

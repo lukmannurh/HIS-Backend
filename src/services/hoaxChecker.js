@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import logger from "../middlewares/loggingMiddleware.js";
+
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -45,7 +47,7 @@ Pastikan HANYA menampilkan tiga baris tersebut.
     const textOutput = response.text(); // string
 
     if (!textOutput) {
-      console.error("Gemini response empty or error.");
+      logger.error("Gemini response empty or error.");
       return {
         validationStatus: "unknown",
         validationDetails: "Gemini returned no output",
@@ -53,7 +55,7 @@ Pastikan HANYA menampilkan tiga baris tersebut.
     }
 
     // Tampilkan di console untuk debug
-    console.log("Gemini raw output:\n", textOutput.trim());
+    logger.info("Gemini raw output:\n" + textOutput.trim());
 
     //
     // Ekstrak hasil:
@@ -72,8 +74,8 @@ Pastikan HANYA menampilkan tiga baris tersebut.
 
     if (lines.length < 2) {
       // fallback
-      console.warn(
-        "Gemini output not in expected 3-line format. Full = ",
+      logger.warn(
+        "Gemini output tidak dalam format 3 baris yang diharapkan. Semua = ",
         lines
       );
       return {
@@ -93,7 +95,7 @@ Pastikan HANYA menampilkan tiga baris tersebut.
       validationStatus = "valid";
     } else {
       // fallback
-      console.warn("Gemini did not output 'Hoaks' or 'Asli'.");
+      logger.warn("Gemini tidak mengeluarkan 'Hoaks' atau 'Asli'.");
       validationStatus = "unknown";
     }
 
@@ -112,7 +114,7 @@ Pastikan HANYA menampilkan tiga baris tersebut.
       validationDetails,
     };
   } catch (error) {
-    console.error("Error in checkHoax (Gemini):", error.message);
+    logger.error("Error dalam checkHoax (Gemini): " + error.message);
     return {
       validationStatus: "unknown",
       validationDetails: "Error checking hoax via Gemini",

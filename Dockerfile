@@ -1,5 +1,3 @@
-# Dockerfile
-
 # 1. Gunakan base image Node LTS
 FROM node:18-alpine
 

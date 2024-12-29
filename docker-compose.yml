@@ -1,5 +1,3 @@
-# docker-compose.yml
-
 version: "3.8"
 
 services:
@@ -28,7 +26,12 @@ services:
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
-      # dsb ...
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      HF_API_TOKEN: ${HF_API_TOKEN}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_FACTCHECK_API_KEY: ${GOOGLE_FACTCHECK_API_KEY}
+      NODE_ENV: ${NODE_ENV}
     depends_on:
       - db
 
@@ -38,10 +41,12 @@ services:
     ports:
       - "3001:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: "admin"  # or from env
+      GF_SECURITY_ADMIN_PASSWORD: "admin"  # atau dari env
     depends_on:
       - db
-    # Anda bisa menambahkan volum untuk persist data grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
 
 volumes:
   db_data:
+  grafana_data:

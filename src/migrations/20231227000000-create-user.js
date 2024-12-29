@@ -1,12 +1,14 @@
-"use strict";
+'use strict';
 
+/** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("Users", {
+    await queryInterface.createTable('Users', {
       id: {
-        type: Sequelize.UUID,
-        defaultValue: Sequelize.literal("uuid_generate_v4()"),
+        allowNull: false,
         primaryKey: true,
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.literal('uuid_generate_v4()'), // Menggunakan fungsi UUID dari extension
       },
       username: {
         type: Sequelize.STRING(50),
@@ -18,9 +20,9 @@ module.exports = {
         allowNull: false,
       },
       role: {
-        type: Sequelize.ENUM("owner", "admin", "user"),
-        defaultValue: "user",
+        type: Sequelize.ENUM('owner', 'admin', 'user'),
         allowNull: false,
+        defaultValue: 'user',
       },
       fullName: {
         type: Sequelize.STRING,
@@ -35,23 +37,23 @@ module.exports = {
         allowNull: true,
       },
       gender: {
-        type: Sequelize.ENUM("male", "female", "other", "prefer not to say"),
+        type: Sequelize.ENUM('Pria', 'Wanita'),
         allowNull: true,
       },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("NOW()"),
+        defaultValue: Sequelize.literal('NOW()'),
       },
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("NOW()"),
+        defaultValue: Sequelize.literal('NOW()'),
       },
     });
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("Users");
+    await queryInterface.dropTable('Users');
   },
 };
