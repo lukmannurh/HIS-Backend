@@ -17,6 +17,7 @@ db.sequelize
 
     app.listen(PORT, () => {
       logger.info(`Server berjalan di port ${PORT}`);
+      logger.info(`Swagger docs available at http://localhost:${PORT}/api-docs`);
     });
   })
   .catch((err) => {

@@ -1,3 +1,4 @@
+const path = require('path'); // Import modul path
 require('dotenv').config(); // Memuat variabel lingkungan dari .env
 
 module.exports = {
@@ -12,15 +13,15 @@ module.exports = {
     migrationStorage: 'sequelize',
     seederStorage: 'sequelize',
     migrations: {
-      path: 'src/migrations',
+      path: path.resolve(__dirname, 'migrations'), // Path absolut ke migrations di root
     },
     models: {
-      path: 'src/models',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/models'), // Path absolut ke models
+      pattern: /\.cjs$/, // Sesuaikan dengan ekstensi .cjs
     },
     seeders: {
-      path: 'src/seeders',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/seeders'), // Path absolut ke seeders
+      pattern: /\.cjs$/, // Sesuaikan dengan ekstensi .cjs jika seeders juga ada
     },
   },
   test: {
@@ -34,15 +35,15 @@ module.exports = {
     migrationStorage: 'sequelize',
     seederStorage: 'sequelize',
     migrations: {
-      path: 'src/migrations',
+      path: path.resolve(__dirname, 'migrations'),
     },
     models: {
-      path: 'src/models',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/models'),
+      pattern: /\.cjs$/,
     },
     seeders: {
-      path: 'src/seeders',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/seeders'),
+      pattern: /\.cjs$/,
     },
   },
   production: {
@@ -56,15 +57,15 @@ module.exports = {
     migrationStorage: 'sequelize',
     seederStorage: 'sequelize',
     migrations: {
-      path: 'src/migrations',
+      path: path.resolve(__dirname, 'migrations'),
     },
     models: {
-      path: 'src/models',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/models'),
+      pattern: /\.cjs$/,
     },
     seeders: {
-      path: 'src/seeders',
-      pattern: /\.js$/,
+      path: path.resolve(__dirname, 'src/seeders'),
+      pattern: /\.cjs$/,
     },
   },
 };

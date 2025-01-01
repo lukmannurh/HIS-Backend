@@ -1,48 +1,59 @@
 import { DataTypes } from "sequelize";
 
-export default (sequelize) => {
-  const User = sequelize.define("User", {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
+const User = (sequelize) => {
+  const UserModel = sequelize.define(
+    "User",
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      username: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+      },
+      email: {
+        type: DataTypes.STRING,
+        allowNull: true, // Mengizinkan NULL
+        unique: true,
+        validate: {
+          isEmail: true,
+        },
+      },
+      password: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      role: {
+        type: DataTypes.ENUM("admin", "owner", "user"),
+        defaultValue: "user",
+      },
+      fullName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      address: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      age: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      gender: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
-    username: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: true,
-    },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    // Tiga role: 'owner', 'admin', 'user'
-    role: {
-      type: DataTypes.ENUM("owner", "admin", "user"),
-      defaultValue: "user",
-      allowNull: false,
-    },
-    // Field profil:
-    fullName: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    address: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    age: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    gender: {
-      type: DataTypes.ENUM("Pria", "Wanita"),
-      allowNull: true,
-    },
-  }, {
-    tableName: "Users",
-    timestamps: true,
-  });
+    {
+      tableName: "Users",
+      timestamps: true,
+    }
+  );
 
-  return User;
+  return UserModel;
 };
+
+export default User;

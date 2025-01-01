@@ -1,0 +1,43 @@
+type: object
+properties:
+  id:
+    type: string
+    format: uuid
+    description: ID unik pengguna
+  username:
+    type: string
+    description: Nama pengguna
+  email:
+    type: string
+    format: email
+    description: Alamat email pengguna
+  role:
+    type: string
+    enum: [admin, owner, user]
+    description: Peran pengguna
+  fullName:
+    type: string
+    description: Nama lengkap pengguna
+  address:
+    type: string
+    description: Alamat pengguna
+  age:
+    type: integer
+    description: Usia pengguna
+  gender:
+    type: string
+    description: Jenis kelamin pengguna
+  createdAt:
+    type: string
+    format: date-time
+    description: Waktu pembuatan pengguna
+  updatedAt:
+    type: string
+    format: date-time
+    description: Waktu pembaruan terakhir pengguna
+required:
+  - id
+  - username
+  - role
+  - createdAt
+  - updatedAt

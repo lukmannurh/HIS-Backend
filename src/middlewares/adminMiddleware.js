@@ -1,9 +1,13 @@
 import logger from "./loggingMiddleware.js";
 
-export default (req, res, next) => {
+const adminMiddleware = (req, res, next) => {
   if (req.userRole !== "admin" && req.userRole !== "owner") {
-    logger.warn(`User ${req.userId} mencoba mengakses rute admin`);
-    return res.status(403).json({ message: "Forbidden: Admin/Owner only" });
+    logger.warn(
+      `Access denied for user ID: ${req.userId} with role: ${req.userRole}`
+    );
+    return res.status(403).json({ message: "Access denied" });
   }
   next();
 };
+
+export default adminMiddleware;

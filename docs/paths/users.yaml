@@ -1,0 +1,19 @@
+get:
+  summary: Mengambil semua pengguna (admin/owner)
+  tags:
+    - Users
+  security:
+    - BearerAuth: []
+  responses:
+    200:
+      description: Daftar semua pengguna
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../components/schemas/User.yaml'
+    401:
+      description: Tidak terautentikasi
+    403:
+      description: Akses ditolak

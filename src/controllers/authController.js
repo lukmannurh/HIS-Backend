@@ -1,10 +1,15 @@
-import { registerUser, loginUser, refreshAccessToken } from "../services/authService.js";
+import {
+  registerUser,
+  loginUser,
+  refreshAccessToken,
+} from "../services/authService.js";
 
 export const register = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
-    const user = await registerUser({ username, password, role });
+    const { username, email, password, role } = req.body;
+    const user = await registerUser({ username, email, password, role });
 
+    // Anda harus mengganti akses_token dan refresh_token dengan token yang sebenarnya
     return res.status(201).json({
       message: "User berhasil dibuat",
       data: user,

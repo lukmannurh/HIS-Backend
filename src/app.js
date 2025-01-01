@@ -7,8 +7,12 @@ import authRoutes from "./routes/authRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import logger from "./middlewares/loggingMiddleware.js";
+import setupSwagger from './swagger/swagger.js'; // Update path impor Swagger
 
 const app = express();
+
+// Setup Swagger
+setupSwagger(app);
 
 // Middleware
 app.use(helmet()); // Tambahkan security headers

@@ -1,6 +1,10 @@
 import bcrypt from "bcrypt";
 import db from "../models/index.js";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/token.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../utils/token.js";
 import logger from "../middlewares/loggingMiddleware.js";
 
 const User = db.User;
@@ -15,7 +19,9 @@ export const registerUser = async ({ username, password, role }) => {
   // Cek keberadaan user
   const existingUser = await User.findOne({ where: { username } });
   if (existingUser) {
-    logger.warn(`Percobaan registrasi dengan username yang sudah ada: ${username}`);
+    logger.warn(
+      `Percobaan registrasi dengan username yang sudah ada: ${username}`
+    );
     throw { status: 400, message: "Username sudah ada" };
   }
 
@@ -38,35 +44,26 @@ export const registerUser = async ({ username, password, role }) => {
   };
 };
 
-export const loginUser = async ({ username, password }) => {
-  // Cari user berdasarkan username
-  const user = await User.findOne({ where: { username } });
+export const loginUser = async (loginData) => {
+  const { username, password } = loginData;
+  const user = await db.User.findOne({ where: { username } });
+
   if (!user) {
-    logger.warn(`Login gagal untuk user tidak ada: ${username}`);
     throw { status: 401, message: "Username atau password salah" };
   }
 
-  // Cek password
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    logger.warn(`Login gagal untuk user: ${username} karena password salah`);
     throw { status: 401, message: "Username atau password salah" };
   }
 
-  // Generate token
   const accessToken = generateAccessToken({ id: user.id, role: user.role });
   const refreshToken = generateRefreshToken({ id: user.id, role: user.role });
-
-  logger.info(`User berhasil login: ${username}`);
 
   return {
     accessToken,
     refreshToken,
-    user: {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-    },
+    user: { id: user.id, username: user.username, role: user.role },
   };
 };
 

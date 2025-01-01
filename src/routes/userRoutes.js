@@ -3,32 +3,81 @@ import * as userController from "../controllers/userController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import adminMiddleware from "../middlewares/adminMiddleware.js";
 import ownerMiddleware from "../middlewares/ownerMiddleware.js";
+import { body, param } from "express-validator";
+import { validationMiddleware } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
 
-// GET all users (admin/owner)
 router.get("/", authMiddleware, adminMiddleware, userController.getAllUsers);
 
-// GET user by ID
-router.get("/:userId", authMiddleware, userController.getUserById);
+router.get(
+  "/:userId",
+  authMiddleware,
+  [
+    param("userId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID pengguna harus diisi dan berupa string"),
+  ],
+  validationMiddleware,
+  userController.getUserById
+);
 
-// DELETE user (role=user) - admin/owner
 router.delete(
   "/:userId",
   authMiddleware,
   adminMiddleware,
+  [
+    param("userId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID pengguna harus diisi dan berupa string"),
+  ],
+  validationMiddleware,
   userController.deleteUser
 );
 
-// DELETE admin - owner only
 router.delete(
   "/admin/:adminId",
   authMiddleware,
   ownerMiddleware,
+  [
+    param("adminId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID admin harus diisi dan berupa string"),
+  ],
+  validationMiddleware,
   userController.deleteAdmin
 );
 
-// UPDATE profile (update diri sendiri)
-router.put("/profile", authMiddleware, userController.updateProfile);
+router.put(
+  "/profile",
+  authMiddleware,
+  [
+    body("password")
+      .optional()
+      .isLength({ min: 6 })
+      .withMessage("Password harus minimal 6 karakter"),
+    body("fullName")
+      .optional()
+      .isString()
+      .withMessage("FullName harus berupa string"),
+    body("address")
+      .optional()
+      .isString()
+      .withMessage("Address harus berupa string"),
+    body("age")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Age harus berupa integer positif"),
+    body("gender")
+      .optional()
+      .isString()
+      .withMessage("Gender harus berupa string"),
+  ],
+  validationMiddleware,
+  userController.updateProfile
+);
 
 export default router;

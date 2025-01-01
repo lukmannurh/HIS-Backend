@@ -1,0 +1,22 @@
+openapi: 3.0.0
+info:
+  title: Hamlet Information System API
+  version: 1.0.0
+  description: API untuk mengelola informasi di Hamlet Information System.
+servers:
+  - url: http://localhost:3000
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      $ref: './components/schemas/User.yaml'
+security:
+  - BearerAuth: []
+paths:
+  /api/users:
+    $ref: './paths/users.yaml'
+  # Tambahkan rute lainnya dengan referensi serupa

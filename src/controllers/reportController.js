@@ -9,7 +9,10 @@ export async function createReport(req, res) {
     const { title, content, link } = req.body;
     const userId = req.userId;
 
-    const { validationStatus, validationDetails } = await checkHoax(content, link);
+    const { validationStatus, validationDetails } = await checkHoax(
+      content,
+      link
+    );
 
     const newReport = await Report.create({
       title,
