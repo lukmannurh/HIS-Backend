@@ -75,6 +75,10 @@ router.put(
       .optional()
       .isString()
       .withMessage("Gender harus berupa string"),
+    body("email") 
+      .optional()
+      .isEmail()
+      .withMessage("Email harus valid"),
   ],
   validationMiddleware,
   userController.updateProfile

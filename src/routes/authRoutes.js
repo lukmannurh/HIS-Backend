@@ -56,6 +56,7 @@ router.post(
       .notEmpty()
       .withMessage("Refresh token wajib diisi dan harus berupa string"),
   ],
+  
   validationMiddleware,
   refresh
 );
