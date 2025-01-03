@@ -1,0 +1,14 @@
+# docs/components/schemas/ValidationError.yaml
+type: object
+properties:
+  errors:
+    type: array
+    items:
+      type: object
+      additionalProperties:
+        type: string
+    description: Daftar kesalahan validasi
+example:
+  errors:
+    - email: "Email harus valid"
+    - password: "Password harus minimal 6 karakter"

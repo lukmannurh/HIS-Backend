@@ -1,3 +1,4 @@
+# docs/components/schemas/User.yaml
 type: object
 properties:
   id:

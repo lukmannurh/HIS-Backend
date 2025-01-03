@@ -2,9 +2,38 @@ import { User } from "../models/index.js";
 import bcrypt from "bcrypt";
 import logger from "../middlewares/loggingMiddleware.js";
 
+// Import policy functions
+import {
+  canViewAllUsers,
+  canViewUser,
+  canDeleteUser,
+  canUpdateUser,
+} from "../policies/userPolicy.js";
+
+/**
+ * GET /api/users
+ * Owner => Melihat semua user
+ * Admin => Hanya melihat user dengan role 'user'
+ * User (biasa) => 403 Forbidden
+ */
 export const getAllUsers = async (req, res) => {
   try {
+    // Cek policy
+    if (!canViewAllUsers(req.userRole)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    let whereCondition = {};
+
+    // Admin hanya ingin melihat user role='user'
+    if (req.userRole === "admin") {
+      whereCondition = { role: "user" };
+    }
+
+    // Owner => whereCondition kosong => semua user
+
     const users = await User.findAll({
+      where: whereCondition,
       attributes: [
         "id",
         "username",
@@ -26,29 +55,34 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/users/:userId
+ * Owner => Bisa lihat user apa saja
+ * Admin => Bisa lihat user jika targetUser.role !== 'owner'
+ * User => Hanya bisa lihat dirinya sendiri
+ */
 export async function getUserById(req, res) {
   try {
     const { userId } = req.params;
-    const requestingUserId = req.userId; // dari authMiddleware
-    const requestingUserRole = req.userRole; // role dari JWT
+    const requestingUserId = req.userId;
+    const requestingUserRole = req.userRole;
 
     const targetUser = await User.findByPk(userId);
     if (!targetUser) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // Role-based logic:
-    // - If admin or owner => allowed
-    // - If user => only allowed if userId === requestingUserId
+    // Gunakan policy
     if (
-      requestingUserRole !== "admin" &&
-      requestingUserRole !== "owner" &&
-      requestingUserId !== userId
+      !canViewUser(
+        { id: requestingUserId, role: requestingUserRole },
+        { id: targetUser.id, role: targetUser.role }
+      )
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Pilih field yang ditampilkan
+    // Jika lolos policy, tampilkan data user
     return res.json({
       id: targetUser.id,
       username: targetUser.username,
@@ -67,33 +101,49 @@ export async function getUserById(req, res) {
   }
 }
 
+/**
+ * DELETE /api/users/:userId
+ * Owner => Boleh hapus siapa saja (admin/user/owner lain, tergantung kebijakan)
+ * Admin => Hanya boleh hapus user role='user'
+ * User => (default) tidak boleh hapus user lain
+ */
 export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
+    const requestingUserId = req.userId;
+    const requestingUserRole = req.userRole;
+
     const targetUser = await User.findByPk(userId);
 
     if (!targetUser) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // Tidak boleh hapus admin/owner di sini
-    if (targetUser.role === "admin" || targetUser.role === "owner") {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Tidak dapat menghapus admin atau owner melalui endpoint ini",
-        });
+    // Gunakan policy
+    if (
+      !canDeleteUser(
+        { id: requestingUserId, role: requestingUserRole },
+        { id: targetUser.id, role: targetUser.role }
+      )
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     await targetUser.destroy();
-    return res.json({ message: "User (role=user) berhasil dihapus" });
+    logger.info(
+      `User [${requestingUserId}, role=${requestingUserRole}] deleted user [${targetUser.id}, role=${targetUser.role}]`
+    );
+    return res.json({ message: "User berhasil dihapus" });
   } catch (error) {
     logger.error(`Error in deleteUser: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
+/**
+ * DELETE /api/users/admin/:adminId  (tetap seperti semula)
+ *   - Hanya ownerMiddleware
+ */
 export const deleteAdmin = async (req, res) => {
   try {
     const { adminId } = req.params;
@@ -113,6 +163,11 @@ export const deleteAdmin = async (req, res) => {
   }
 };
 
+/**
+ * PUT /api/users/profile
+ * (Contoh saja, hanya user yang bersangkutan, admin/owner bisa update user?
+ *  Bisa juga cek policy 'canUpdateUser' jika diperlukan.)
+ */
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.userId; // ID user yang sedang login
@@ -122,6 +177,11 @@ export const updateProfile = async (req, res) => {
     if (!currentUser) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
+
+    // (Jika mau ketat, panggil canUpdateUser di sini)
+    // if (!canUpdateUser({id: userId, role: req.userRole}, {id: currentUser.id, role: currentUser.role})) {
+    //   return res.status(403).json({ message: "Forbidden" });
+    // }
 
     // Update fields
     if (password) {
@@ -134,8 +194,6 @@ export const updateProfile = async (req, res) => {
     if (gender !== undefined) currentUser.gender = gender;
     if (email !== undefined) currentUser.email = email;
 
-    // role tidak boleh diubah
-
     await currentUser.save();
 
     return res.json({
@@ -144,7 +202,7 @@ export const updateProfile = async (req, res) => {
         id: currentUser.id,
         username: currentUser.username,
         email: currentUser.email,
-        role: currentUser.role, // tetap
+        role: currentUser.role,
         fullName: currentUser.fullName,
         address: currentUser.address,
         age: currentUser.age,

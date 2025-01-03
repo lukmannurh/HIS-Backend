@@ -1,0 +1,33 @@
+# docs/paths/deleteAdmin.yaml
+delete:
+  summary: Menghapus admin (hanya oleh owner)
+  tags:
+    - Users
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: adminId
+      required: true
+      schema:
+        type: string
+      description: ID unik admin
+  responses:
+    200:
+      description: Admin berhasil dihapus
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: Pesan status
+            example:
+              message: "Admin berhasil dihapus"
+    401:
+      description: Tidak terautentikasi
+    403:
+      description: Akses ditolak
+    404:
+      description: Admin tidak ditemukan

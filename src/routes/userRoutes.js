@@ -1,15 +1,16 @@
 import express from "express";
 import * as userController from "../controllers/userController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
-import adminMiddleware from "../middlewares/adminMiddleware.js";
-import ownerMiddleware from "../middlewares/ownerMiddleware.js";
 import { body, param } from "express-validator";
 import { validationMiddleware } from "../middlewares/validationMiddleware.js";
+import ownerMiddleware from "../middlewares/ownerMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", authMiddleware, adminMiddleware, userController.getAllUsers);
+// 1) GET all users => policy-based, tidak perlu adminMiddleware lagi
+router.get("/", authMiddleware, userController.getAllUsers);
 
+// 2) GET user by ID => policy-based
 router.get(
   "/:userId",
   authMiddleware,
@@ -23,10 +24,10 @@ router.get(
   userController.getUserById
 );
 
+// 3) DELETE user => policy-based, tidak perlu adminMiddleware di sini
 router.delete(
   "/:userId",
   authMiddleware,
-  adminMiddleware,
   [
     param("userId")
       .isString()
@@ -37,6 +38,7 @@ router.delete(
   userController.deleteUser
 );
 
+// 4) DELETE admin => khusus owner
 router.delete(
   "/admin/:adminId",
   authMiddleware,
@@ -51,6 +53,7 @@ router.delete(
   userController.deleteAdmin
 );
 
+// 5) UPDATE profile => policy-based (opsional)
 router.put(
   "/profile",
   authMiddleware,
@@ -75,10 +78,7 @@ router.put(
       .optional()
       .isString()
       .withMessage("Gender harus berupa string"),
-    body("email") 
-      .optional()
-      .isEmail()
-      .withMessage("Email harus valid"),
+    body("email").optional().isEmail().withMessage("Email harus valid"),
   ],
   validationMiddleware,
   userController.updateProfile

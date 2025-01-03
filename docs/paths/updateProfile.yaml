@@ -1,0 +1,76 @@
+# docs/paths/updateProfile.yaml
+put:
+  summary: Memperbarui profil pengguna (update diri sendiri)
+  tags:
+    - Users
+  security:
+    - BearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            password:
+              type: string
+              format: password
+              description: Kata sandi baru (opsional)
+            fullName:
+              type: string
+              description: Nama lengkap baru (opsional)
+            email:
+              type: string
+              format: email
+              description: Alamat email baru (opsional)
+            address:
+              type: string
+              description: Alamat baru (opsional)
+            age:
+              type: integer
+              description: Usia baru (opsional)
+            gender:
+              type: string
+              description: Jenis kelamin baru (opsional)
+          example:
+            password: "NewPassword123!"
+            fullName: "Jane Doe"
+            email: "jane.doe@example.com"
+            address: "456 Another St"
+            age: 28
+            gender: "Female"
+  responses:
+    200:
+      description: Profil berhasil diperbarui
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              data:
+                $ref: '../components/schemas/User.yaml'
+            example:
+              message: "Profil berhasil diperbarui"
+              data:
+                id: "123"
+                username: "john_doe"
+                email: "jane.doe@example.com"
+                role: "user"
+                fullName: "Jane Doe"
+                address: "456 Another St"
+                age: 28
+                gender: "Female"
+                createdAt: "2023-01-01T00:00:00.000Z"
+                updatedAt: "2023-02-01T00:00:00.000Z"
+    400:
+      description: Permintaan tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/ValidationError.yaml'
+    401:
+      description: Tidak terautentikasi
+    404:
+      description: User tidak ditemukan

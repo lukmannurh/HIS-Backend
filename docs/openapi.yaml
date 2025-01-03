@@ -13,10 +13,17 @@ components:
       bearerFormat: JWT
   schemas:
     User:
-      $ref: './components/schemas/User.yaml'
+      $ref: "./components/schemas/User.yaml"
+    ValidationError:
+      $ref: "./components/schemas/ValidationError.yaml"
 security:
   - BearerAuth: []
 paths:
   /api/users:
-    $ref: './paths/users.yaml'
-  # Tambahkan rute lainnya dengan referensi serupa
+    $ref: "./paths/users.yaml"
+  /api/users/{userId}:
+    $ref: "./paths/userById.yaml"
+  /api/users/admin/{adminId}:
+    $ref: "./paths/deleteAdmin.yaml"
+  /api/users/profile:
+    $ref: "./paths/updateProfile.yaml"

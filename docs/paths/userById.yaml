@@ -1,0 +1,66 @@
+# docs/paths/userById.yaml
+get:
+  summary: Mengambil pengguna berdasarkan ID
+  tags:
+    - Users
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: userId
+      required: true
+      schema:
+        type: string
+      description: ID unik pengguna
+  responses:
+    200:
+      description: Informasi pengguna
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/User.yaml'
+    400:
+      description: Permintaan tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/ValidationError.yaml'
+    401:
+      description: Tidak terautentikasi
+    403:
+      description: Akses ditolak
+    404:
+      description: Pengguna tidak ditemukan
+
+delete:
+  summary: Menghapus pengguna (role=user) oleh admin/owner
+  tags:
+    - Users
+  security:
+    - BearerAuth: []
+  parameters:
+    - in: path
+      name: userId
+      required: true
+      schema:
+        type: string
+      description: ID unik pengguna
+  responses:
+    200:
+      description: Pengguna berhasil dihapus
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: Pesan status
+            example:
+              message: "User (role=user) berhasil dihapus"
+    401:
+      description: Tidak terautentikasi
+    403:
+      description: Akses ditolak
+    404:
+      description: User tidak ditemukan
