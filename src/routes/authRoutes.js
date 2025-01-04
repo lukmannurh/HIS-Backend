@@ -1,14 +1,23 @@
 import express from "express";
-import { register, login, refresh } from "../controllers/authController.js";
+import {
+  register,
+  login,
+  refresh,
+  logout,
+} from "../controllers/authController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
-// (adminMiddleware dihapus jika kita pakai policy saja)
 import { body } from "express-validator";
 import { validationMiddleware } from "../middlewares/validationMiddleware.js";
 import loginLimiter from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
-// Hanya admin/owner (ditentukan di authPolicy) => panggil authMiddleware lalu panggil policy di controller
+/**
+ * REGISTER
+ *   - Pakai authMiddleware agar user harus login (owner/admin) sebelum register user baru
+ *   - validasi input: username, email, password, role
+ *   - policy check ada di controller (canRegisterUser)
+ */
 router.post(
   "/register",
   authMiddleware,
@@ -18,13 +27,20 @@ router.post(
     body("password")
       .isLength({ min: 6 })
       .withMessage("Password min 6 karakter"),
-    body("role").optional().isIn(["admin", "owner", "user"]),
+    body("role")
+      .optional()
+      .isIn(["admin", "owner", "user"])
+      .withMessage("Role harus salah satu dari: admin, owner, user"),
   ],
   validationMiddleware,
   register
 );
 
-// Login => umumnya publik, jadi boleh tanpa authMiddleware
+/**
+ * LOGIN
+ *   - publik (tidak perlu authMiddleware), tapi dibatasi oleh rateLimiter
+ *   - validasi username & password
+ */
 router.post(
   "/login",
   loginLimiter,
@@ -36,17 +52,40 @@ router.post(
   login
 );
 
-// Refresh => user sudah login, atau setidaknya punya refresh token
+/**
+ * REFRESH TOKEN
+ *   - user mengirim refreshToken, lalu kita balas accessToken baru
+ *   - validasi body refreshToken
+ *   - policy-based check opsional (biasanya publik, tapi refreshToken harus valid)
+ */
 router.post(
   "/refresh",
   [
     body("refreshToken")
       .isString()
       .notEmpty()
-      .withMessage("Refresh token wajib"),
+      .withMessage("Refresh token wajib diisi"),
   ],
   validationMiddleware,
   refresh
+);
+
+/**
+ * LOGOUT (Opsional)
+ *   - menghapus / revoke refreshToken dari DB
+ *   - user harus login, lalu mengirim refreshToken mana yang mau dicabut
+ */
+router.post(
+  "/logout",
+  authMiddleware,
+  [
+    body("refreshToken")
+      .isString()
+      .notEmpty()
+      .withMessage("Refresh token wajib diisi"),
+  ],
+  validationMiddleware,
+  logout
 );
 
 export default router;

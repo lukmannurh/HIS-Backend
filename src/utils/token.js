@@ -1,19 +1,22 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { encrypt, decrypt } from "./encryption.js";
-import logger from '../middlewares/loggingMiddleware.js';
 
 dotenv.config();
 
-// Pastikan ENCRYPTION_KEY ada dan valid (sudah dilakukan di encryption.js)
-
 export function generateAccessToken(payload) {
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1d" });
-  return encrypt(token);
+  // Masa berlaku diatur via .env, default 15m
+  const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  });
+  return encrypt(token); 
 }
 
 export function generateRefreshToken(payload) {
-  const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+  // Masa berlaku default 7d
+  const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  });
   return encrypt(token);
 }
 

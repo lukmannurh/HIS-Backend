@@ -2,12 +2,11 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-
 import authRoutes from "./routes/authRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import logger from "./middlewares/loggingMiddleware.js";
-import setupSwagger from './swagger/swagger.js'; // Update path impor Swagger
+import setupSwagger from "./swagger/swagger.js";
 
 const app = express();
 
@@ -15,12 +14,16 @@ const app = express();
 setupSwagger(app);
 
 // Middleware
-app.use(helmet()); // Tambahkan security headers
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
 // HTTP request logging menggunakan morgan dan winston
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(
+  morgan("combined", {
+    stream: { write: (message) => logger.info(message.trim()) },
+  })
+);
 
 // Routes
 app.use("/api/auth", authRoutes);

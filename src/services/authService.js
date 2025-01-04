@@ -8,6 +8,7 @@ import {
 import logger from "../middlewares/loggingMiddleware.js";
 
 const User = db.User;
+const RefreshTokenModel = db.RefreshToken;
 
 export const registerUser = async ({ username, password, role }) => {
   // Validasi role
@@ -46,8 +47,7 @@ export const registerUser = async ({ username, password, role }) => {
 
 export const loginUser = async (loginData) => {
   const { username, password } = loginData;
-  const user = await db.User.findOne({ where: { username } });
-
+  const user = await User.findOne({ where: { username } });
   if (!user) {
     throw { status: 401, message: "Username atau password salah" };
   }
@@ -57,30 +57,67 @@ export const loginUser = async (loginData) => {
     throw { status: 401, message: "Username atau password salah" };
   }
 
+  // Buat access token & refresh token
   const accessToken = generateAccessToken({ id: user.id, role: user.role });
-  const refreshToken = generateRefreshToken({ id: user.id, role: user.role });
+  const refreshTokenValue = generateRefreshToken({
+    id: user.id,
+    role: user.role,
+  });
+
+  // Simpan refresh token di DB
+  // Contoh: kadaluarsa 7 hari dari sekarang
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  await RefreshTokenModel.create({
+    token: refreshTokenValue,
+    userId: user.id,
+    expiresAt,
+  });
 
   return {
     accessToken,
-    refreshToken,
+    refreshToken: refreshTokenValue,
     user: { id: user.id, username: user.username, role: user.role },
   };
 };
 
 export const refreshAccessToken = async (refreshToken) => {
   if (!refreshToken) {
-    logger.warn(`Refresh token tidak ada dalam permintaan`);
+    logger.warn("No refresh token in request");
     throw { status: 400, message: "Refresh token diperlukan" };
   }
 
+  // Cari di DB
+  const storedToken = await RefreshTokenModel.findOne({
+    where: { token: refreshToken },
+  });
+  if (!storedToken) {
+    logger.warn("Refresh token not found in DB => might be revoked");
+    throw {
+      status: 401,
+      message: "Refresh token tidak ditemukan / sudah revoked",
+    };
+  }
+
+  // Cek kadaluarsa
+  if (new Date() > storedToken.expiresAt) {
+    logger.info("Refresh token expired, removing from DB");
+    await storedToken.destroy();
+    throw { status: 401, message: "Refresh token kadaluarsa" };
+  }
+
+  // Verifikasi JWT
   let decoded;
   try {
     decoded = verifyRefreshToken(refreshToken);
   } catch (err) {
-    logger.warn(`Refresh token tidak valid`);
+    logger.warn(`Invalid refresh token: ${err.message}`);
+    await storedToken.destroy(); // hapus token invalid
     throw { status: 401, message: "Refresh token tidak valid" };
   }
 
+  // Generate access token baru
   const newAccessToken = generateAccessToken({
     id: decoded.id,
     role: decoded.role,
@@ -89,4 +126,10 @@ export const refreshAccessToken = async (refreshToken) => {
   logger.info(`Access token diperbarui untuk user ID: ${decoded.id}`);
 
   return { accessToken: newAccessToken };
+};
+
+// (Opsional) revoke refresh token => endpoint logout
+export const revokeRefreshToken = async (refreshToken) => {
+  await RefreshTokenModel.destroy({ where: { token: refreshToken } });
+  logger.info(`Refresh token revoked: ${refreshToken.substring(0, 30)}...`);
 };

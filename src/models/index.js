@@ -2,9 +2,9 @@ import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
 import logger from "../middlewares/loggingMiddleware.js";
 
-// Import definisi model sebagai fungsi
 import defineUser from "./user.js";
 import defineReport from "./report.js";
+import defineRefreshToken from "./refreshToken.js"; // Tambahan
 
 dotenv.config();
 
@@ -17,12 +17,13 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "postgres",
-    logging: false, // Nonaktifkan logging SQL
+    logging: false,
   }
 );
 
-// Uji koneksi ke database
-sequelize.authenticate()
+// Coba koneksi
+sequelize
+  .authenticate()
   .then(() => {
     logger.info("Koneksi ke database berhasil.");
   })
@@ -30,27 +31,33 @@ sequelize.authenticate()
     logger.error("Koneksi ke database gagal:", err);
   });
 
-// Definisikan model dengan memanggil fungsi definisi
+// Definisikan model
 const User = defineUser(sequelize);
 const Report = defineReport(sequelize);
+const RefreshToken = defineRefreshToken(sequelize); // Baru
 
-// Definisikan relasi
+// Relasi
 User.hasMany(Report, {
   foreignKey: "userId",
   as: "reports",
 });
-
 Report.belongsTo(User, {
   foreignKey: "userId",
   as: "user",
 });
 
-// Simpan ke objek db untuk ekspor
+// Relasi RefreshToken -> User (opsional, jika mau tahu user mana yang punya refresh token)
+RefreshToken.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
 const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 db.User = User;
 db.Report = Report;
+db.RefreshToken = RefreshToken;
 
-export { User, Report };
+export { User, Report, RefreshToken };
 export default db;
