@@ -16,8 +16,7 @@ export default function authMiddleware(req, res, next) {
 
   try {
     const decoded = verifyAccessToken(token);
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
+    req.user = { id: decoded.id, role: decoded.role };
     next();
   } catch (error) {
     logger.warn('Token invalid or expired');

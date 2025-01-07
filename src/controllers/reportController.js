@@ -21,20 +21,18 @@ const User = db.User; // Untuk join, jika diperlukan
 export async function createReport(req, res) {
   try {
     // Cek policy
-    if (!canCreateReport(req.userRole)) {
+    if (!canCreateReport(req.user.role)) {
       return res
         .status(403)
         .json({ message: "Forbidden: cannot create report" });
     }
 
     const { title, content, link } = req.body;
-    const userId = req.userId;
+    const userId = req.user.id;
 
     // Contoh validasi hoax
-    const { validationStatus, validationDetails } = await checkHoax(
-      content,
-      link
-    );
+    const { validationStatus, validationDetails, relatedNews } =
+      await checkHoax(content, link);
 
     const newReport = await Report.create({
       title,
@@ -42,6 +40,11 @@ export async function createReport(req, res) {
       userId,
       validationStatus,
       validationDetails,
+      relatedNews,
+    });
+
+    logger.info(`Report created by user ID: ${userId}`, {
+      timestamp: new Date().toISOString(),
     });
 
     return res.status(201).json({
@@ -57,17 +60,52 @@ export async function createReport(req, res) {
 /**
  * GET all reports
  *   - Owner => semua
- *   - Admin => hanya milik user role="user"
+ *   - Admin => hanya milik user role="user" dan laporan milik admin sendiri
  *   - User => hanya miliknya
  */
 export async function getAllReports(req, res) {
   try {
-    // Cek apakah user boleh memanggil endpoint "all reports"
-    if (!canViewAllReports(req.userRole)) {
-      // Berarti user adalah role "user", dia tidak boleh melihat semua,
-      // => kita kembalikan hanya miliknya sendiri
-      const reports = await Report.findAll({
-        where: { userId: req.userId },
+    const userRole = req.user.role;
+    const userId = req.user.id;
+
+    let reports;
+
+    if (canViewAllReports(userRole)) {
+      if (userRole === "owner") {
+        // Owner dapat melihat semua laporan
+        reports = await Report.findAll({
+          order: [["createdAt", "DESC"]],
+          include: [
+            {
+              model: db.User,
+              as: "user",
+              attributes: ["id", "username", "role"],
+            },
+          ],
+        });
+      } else if (userRole === "admin") {
+        // Admin dapat melihat laporan milik user dan laporan milik dirinya sendiri
+        reports = await Report.findAll({
+          order: [["createdAt", "DESC"]],
+          include: [
+            {
+              model: db.User,
+              as: "user",
+              attributes: ["id", "username", "role"],
+              where: {
+                [db.Sequelize.Op.or]: [
+                  { role: "user" },
+                  { id: userId, role: "admin" }, // Admin dapat melihat laporan milik dirinya sendiri
+                ],
+              },
+            },
+          ],
+        });
+      }
+    } else {
+      // User hanya dapat melihat laporan yang mereka buat sendiri
+      reports = await Report.findAll({
+        where: { userId: userId },
         order: [["createdAt", "DESC"]],
         include: [
           {
@@ -77,41 +115,9 @@ export async function getAllReports(req, res) {
           },
         ],
       });
-      return res.json(reports);
     }
 
-    // Jika role=owner => lihat semua
-    // Jika role=admin => filter report milik user ber-role "user"
-
-    if (req.userRole === "owner") {
-      // Ambil semua
-      const reports = await Report.findAll({
-        order: [["createdAt", "DESC"]],
-        include: [
-          {
-            model: db.User,
-            as: "user",
-            attributes: ["id", "username", "role"],
-          },
-        ],
-      });
-      return res.json(reports);
-    } else if (req.userRole === "admin") {
-      // Hanya report milik user role="user"
-      // Caranya: gabung ke table user, filter role="user"
-      const reports = await Report.findAll({
-        order: [["createdAt", "DESC"]],
-        include: [
-          {
-            model: db.User,
-            as: "user",
-            attributes: ["id", "username", "role"],
-            where: { role: "user" }, // filter user role
-          },
-        ],
-      });
-      return res.json(reports);
-    }
+    return res.json(reports);
   } catch (error) {
     logger.error(`Error in getAllReports: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
@@ -121,8 +127,8 @@ export async function getAllReports(req, res) {
 /**
  * GET report by ID
  *   - Owner => boleh lihat semua
- *   - Admin => boleh lihat jika report milik user role="user"
- *   - User => hanya boleh lihat report miliknya (report.userId === userId)
+ *   - Admin => boleh lihat jika report milik user role="user" atau dirinya sendiri
+ *   - User => hanya boleh lihat report miliknya (report.userId === user.id)
  */
 export async function getReportById(req, res) {
   try {
@@ -143,17 +149,12 @@ export async function getReportById(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    // Panggil policy (cek role pemilik report, dsb.)
     const reportOwnerRole = report.user.role;
     const reportOwnerId = report.user.id;
 
-    if (
-      !canViewReport(
-        { id: req.userId, role: req.userRole },
-        reportOwnerRole,
-        reportOwnerId
-      )
-    ) {
+    // Cek apakah pengguna dapat melihat laporan ini
+    const user = { id: req.user.id, role: req.user.role };
+    if (!canViewReport(user, reportOwnerRole, reportOwnerId)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -167,7 +168,7 @@ export async function getReportById(req, res) {
 /**
  * UPDATE report
  *   - Owner => boleh update semua
- *   - Admin => boleh update jika pemilik report "user"
+ *   - Admin => boleh update jika pemilik report "user" atau dirinya sendiri
  *   - User => hanya boleh update miliknya
  */
 export async function updateReport(req, res) {
@@ -190,17 +191,12 @@ export async function updateReport(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    // Policy check
     const reportOwnerRole = report.user.role;
     const reportOwnerId = report.user.id;
 
-    if (
-      !canUpdateReport(
-        { id: req.userId, role: req.userRole },
-        reportOwnerRole,
-        reportOwnerId
-      )
-    ) {
+    // Cek apakah pengguna dapat memperbarui laporan ini
+    const user = { id: req.user.id, role: req.user.role };
+    if (!canUpdateReport(user, reportOwnerRole, reportOwnerId)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -219,15 +215,18 @@ export async function updateReport(req, res) {
     // Panggil checkHoax setiap kali content/link berubah
     // (Jika Anda mau checkHoax setiap update apa pun, panggil saja tanpa syarat)
     if (content !== undefined || link !== undefined) {
-      const { validationStatus, validationDetails } = await checkHoax(
-        report.content,
-        report.link
-      );
+      const { validationStatus, validationDetails, relatedNews } =
+        await checkHoax(report.content, report.link);
       report.validationStatus = validationStatus;
       report.validationDetails = validationDetails;
+      report.relatedNews = relatedNews;
     }
 
     await report.save();
+
+    logger.info(`Report updated by user ID: ${req.user.id}`, {
+      timestamp: new Date().toISOString(),
+    });
 
     return res.json({
       message: "Report berhasil diupdate",
@@ -242,7 +241,7 @@ export async function updateReport(req, res) {
 /**
  * DELETE report
  *   - Owner => boleh hapus semua
- *   - Admin => boleh hapus jika pemilik report "user"
+ *   - Admin => boleh hapus jika pemilik report "user" atau dirinya sendiri
  *   - User => hanya boleh hapus report miliknya
  */
 export async function deleteReport(req, res) {
@@ -262,21 +261,21 @@ export async function deleteReport(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    // Policy
     const reportOwnerRole = report.user.role;
     const reportOwnerId = report.user.id;
 
-    if (
-      !canDeleteReport(
-        { id: req.userId, role: req.userRole },
-        reportOwnerRole,
-        reportOwnerId
-      )
-    ) {
+    // Cek apakah pengguna dapat menghapus laporan ini
+    const user = { id: req.user.id, role: req.user.role };
+    if (!canDeleteReport(user, reportOwnerRole, reportOwnerId)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     await report.destroy();
+
+    logger.info(`Report deleted by user ID: ${req.user.id}`, {
+      timestamp: new Date().toISOString(),
+    });
+
     return res.json({ message: "Report berhasil dihapus" });
   } catch (error) {
     logger.error(`Error in deleteReport: ${error.message}`);

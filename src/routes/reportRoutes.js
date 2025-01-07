@@ -20,7 +20,10 @@ router.post(
   [
     body("title").isString().notEmpty().withMessage("Title wajib diisi"),
     body("content").isString().notEmpty().withMessage("Content wajib diisi"),
-    body("link").optional().isURL().withMessage("Link harus URL valid jika diisi"),
+    body("link")
+      .optional()
+      .isURL()
+      .withMessage("Link harus URL valid jika diisi"),
   ],
   validationMiddleware,
   createReport
@@ -34,7 +37,10 @@ router.get(
   "/:reportId",
   authMiddleware,
   [
-    param("reportId").isString().notEmpty().withMessage("ID laporan harus diisi"),
+    param("reportId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID laporan harus diisi"),
   ],
   validationMiddleware,
   getReportById
@@ -45,7 +51,10 @@ router.put(
   "/:reportId",
   authMiddleware,
   [
-    param("reportId").isString().notEmpty().withMessage("ID laporan harus diisi"),
+    param("reportId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID laporan harus diisi"),
     body("title").optional().isString().withMessage("Title harus string"),
     body("content").optional().isString().withMessage("Content harus string"),
     body("link").optional().isURL().withMessage("Link harus URL valid"),
@@ -59,7 +68,10 @@ router.delete(
   "/:reportId",
   authMiddleware,
   [
-    param("reportId").isString().notEmpty().withMessage("ID laporan harus diisi"),
+    param("reportId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID laporan harus diisi"),
   ],
   validationMiddleware,
   deleteReport

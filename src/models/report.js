@@ -23,6 +23,10 @@ export default (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    relatedNews: { // Field baru
+      type: DataTypes.JSON, // Menyimpan sebagai JSON
+      allowNull: true,
+    },
   }, {
     tableName: "Reports",
     timestamps: true,
