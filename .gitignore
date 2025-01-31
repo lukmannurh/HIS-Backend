@@ -87,3 +87,6 @@ jspm_packages/
 # Debug and profiling
 *.prof
 *.trace
+
+
+package-lock.json

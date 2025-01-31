@@ -12,21 +12,23 @@ import {
 
 /**
  * GET /api/users
- * Owner => Melihat semua user
- * Admin => Hanya melihat user dengan role 'user'
- * User (biasa) => 403 Forbidden
+ * - Owner: Melihat semua user
+ * - Admin: Hanya melihat user dengan role 'user'
+ * - User Biasa: 403 Forbidden
  */
 export const getAllUsers = async (req, res) => {
   try {
+    const currentUser = { id: req.user.id, role: req.user.role };
+
     // Cek policy
-    if (!canViewAllUsers(req.userRole)) {
+    if (!canViewAllUsers(currentUser.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     let whereCondition = {};
 
     // Admin hanya ingin melihat user role='user'
-    if (req.userRole === "admin") {
+    if (currentUser.role === "admin") {
       whereCondition = { role: "user" };
     }
 
@@ -56,16 +58,49 @@ export const getAllUsers = async (req, res) => {
 };
 
 /**
+ * GET /api/users/me
+ * - Mengembalikan data profil pengguna yang sedang login
+ */
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findByPk(userId, {
+      attributes: [
+        "id",
+        "username",
+        "email",
+        "role",
+        "fullName",
+        "address",
+        "age",
+        "gender",
+        "createdAt",
+        "updatedAt",
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    logger.error(`Error in getUserProfile: ${error.message}`);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
  * GET /api/users/:userId
- * Owner => Bisa lihat user apa saja
- * Admin => Bisa lihat user jika targetUser.role !== 'owner'
- * User => Hanya bisa lihat dirinya sendiri
+ * - Owner: Bisa lihat user apa saja
+ * - Admin: Bisa lihat user jika targetUser.role !== 'owner'
+ * - User Biasa: Hanya bisa lihat dirinya sendiri
  */
 export async function getUserById(req, res) {
   try {
     const { userId } = req.params;
-    const requestingUserId = req.userId;
-    const requestingUserRole = req.userRole;
+    const requestingUser = { id: req.user.id, role: req.user.role };
 
     const targetUser = await User.findByPk(userId);
     if (!targetUser) {
@@ -74,10 +109,7 @@ export async function getUserById(req, res) {
 
     // Gunakan policy
     if (
-      !canViewUser(
-        { id: requestingUserId, role: requestingUserRole },
-        { id: targetUser.id, role: targetUser.role }
-      )
+      !canViewUser(requestingUser, { id: targetUser.id, role: targetUser.role })
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -103,15 +135,14 @@ export async function getUserById(req, res) {
 
 /**
  * DELETE /api/users/:userId
- * Owner => Boleh hapus siapa saja (admin/user/owner lain, tergantung kebijakan)
- * Admin => Hanya boleh hapus user role='user'
- * User => (default) tidak boleh hapus user lain
+ * - Owner: Boleh hapus siapa saja (admin/user)
+ * - Admin: Hanya boleh hapus user dengan role='user'
+ * - User Biasa: Tidak boleh hapus siapapun
  */
 export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const requestingUserId = req.userId;
-    const requestingUserRole = req.userRole;
+    const requestingUser = { id: req.user.id, role: req.user.role };
 
     const targetUser = await User.findByPk(userId);
 
@@ -121,17 +152,17 @@ export const deleteUser = async (req, res) => {
 
     // Gunakan policy
     if (
-      !canDeleteUser(
-        { id: requestingUserId, role: requestingUserRole },
-        { id: targetUser.id, role: targetUser.role }
-      )
+      !canDeleteUser(requestingUser, {
+        id: targetUser.id,
+        role: targetUser.role,
+      })
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     await targetUser.destroy();
     logger.info(
-      `User [${requestingUserId}, role=${requestingUserRole}] deleted user [${targetUser.id}, role=${targetUser.role}]`
+      `User [${requestingUser.id}, role=${requestingUser.role}] deleted user [${targetUser.id}, role=${targetUser.role}]`
     );
     return res.json({ message: "User berhasil dihapus" });
   } catch (error) {
@@ -141,12 +172,15 @@ export const deleteUser = async (req, res) => {
 };
 
 /**
- * DELETE /api/users/admin/:adminId  (tetap seperti semula)
- *   - Hanya ownerMiddleware
+ * DELETE /api/users/admin/:adminId
+ * - Hanya Owner yang dapat menghapus admin
  */
 export const deleteAdmin = async (req, res) => {
   try {
     const { adminId } = req.params;
+    const requestingUser = { id: req.user.id, role: req.user.role };
+
+    // Pastikan hanya admin yang dapat dihapus
     const targetAdmin = await User.findOne({
       where: { id: adminId, role: "admin" },
     });
@@ -155,7 +189,20 @@ export const deleteAdmin = async (req, res) => {
       return res.status(404).json({ message: "Admin tidak ditemukan" });
     }
 
+    // Meskipun sudah melalui ownerMiddleware, pastikan kembali dengan policy
+    if (
+      !canDeleteUser(requestingUser, {
+        id: targetAdmin.id,
+        role: targetAdmin.role,
+      })
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     await targetAdmin.destroy();
+    logger.info(
+      `Owner [${requestingUser.id}] deleted admin [${targetAdmin.id}]`
+    );
     return res.json({ message: "Admin berhasil dihapus" });
   } catch (error) {
     logger.error(`Error in deleteAdmin: ${error.message}`);
@@ -165,23 +212,28 @@ export const deleteAdmin = async (req, res) => {
 
 /**
  * PUT /api/users/profile
- * (Contoh saja, hanya user yang bersangkutan, admin/owner bisa update user?
- *  Bisa juga cek policy 'canUpdateUser' jika diperlukan.)
+ * - Mengupdate profil pengguna yang sedang login
  */
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.userId; // ID user yang sedang login
+    const userId = req.user.id; // ID user yang sedang login
     const { password, fullName, email, address, age, gender } = req.body;
+    const requestingUser = { id: req.user.id, role: req.user.role };
 
     const currentUser = await User.findByPk(userId);
     if (!currentUser) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // (Jika mau ketat, panggil canUpdateUser di sini)
-    // if (!canUpdateUser({id: userId, role: req.userRole}, {id: currentUser.id, role: currentUser.role})) {
-    //   return res.status(403).json({ message: "Forbidden" });
-    // }
+    // Cek kebijakan update user
+    if (
+      !canUpdateUser(requestingUser, {
+        id: currentUser.id,
+        role: currentUser.role,
+      })
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     // Update fields
     if (password) {

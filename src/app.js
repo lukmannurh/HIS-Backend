@@ -15,7 +15,11 @@ setupSwagger(app);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: '*', // Mengizinkan semua origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Metode HTTP yang diizinkan
+  allowedHeaders: ['Content-Type', 'Authorization'], // Header yang diizinkan
+}));
 app.use(express.json());
 
 // HTTP request logging menggunakan morgan dan winston

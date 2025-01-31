@@ -7,53 +7,77 @@ import ownerMiddleware from "../middlewares/ownerMiddleware.js";
 
 const router = express.Router();
 
-// 1) GET all users => policy-based, tidak perlu adminMiddleware lagi
+/**
+ * GET /api/users
+ * - Owner: Melihat semua user
+ * - Admin: Melihat hanya user dengan role 'user'
+ * - User Biasa: Forbidden
+ */
 router.get("/", authMiddleware, userController.getAllUsers);
 
-// 2) GET user by ID => policy-based
+/**
+ * GET /api/users/me
+ * - Mengembalikan data profil pengguna yang sedang login
+ */
+router.get("/me", authMiddleware, userController.getUserProfile);
+
+/**
+ * GET /api/users/:userId
+ * - Owner: Bisa melihat user apa saja
+ * - Admin: Bisa melihat user jika targetUser.role !== 'owner'
+ * - User Biasa: Hanya bisa melihat dirinya sendiri
+ */
 router.get(
   "/:userId",
   authMiddleware,
   [
     param("userId")
-      .isString()
-      .notEmpty()
-      .withMessage("ID pengguna harus diisi dan berupa string"),
+      .isUUID()
+      .withMessage("ID pengguna harus berupa UUID yang valid"),
   ],
   validationMiddleware,
   userController.getUserById
 );
 
-// 3) DELETE user => policy-based, tidak perlu adminMiddleware di sini
+/**
+ * DELETE /api/users/:userId
+ * - Owner: Boleh hapus siapa saja (admin/user)
+ * - Admin: Hanya boleh hapus user dengan role 'user'
+ * - User Biasa: Tidak boleh hapus siapapun
+ */
 router.delete(
   "/:userId",
   authMiddleware,
   [
     param("userId")
-      .isString()
-      .notEmpty()
-      .withMessage("ID pengguna harus diisi dan berupa string"),
+      .isUUID()
+      .withMessage("ID pengguna harus berupa UUID yang valid"),
   ],
   validationMiddleware,
   userController.deleteUser
 );
 
-// 4) DELETE admin => khusus owner
+/**
+ * DELETE /api/users/admin/:adminId
+ * - Hanya Owner yang dapat menghapus admin
+ */
 router.delete(
   "/admin/:adminId",
   authMiddleware,
   ownerMiddleware,
   [
     param("adminId")
-      .isString()
-      .notEmpty()
-      .withMessage("ID admin harus diisi dan berupa string"),
+      .isUUID()
+      .withMessage("ID admin harus berupa UUID yang valid"),
   ],
   validationMiddleware,
   userController.deleteAdmin
 );
 
-// 5) UPDATE profile => policy-based (opsional)
+/**
+ * PUT /api/users/profile
+ * - Mengupdate profil pengguna yang sedang login
+ */
 router.put(
   "/profile",
   authMiddleware,
@@ -78,7 +102,10 @@ router.put(
       .optional()
       .isString()
       .withMessage("Gender harus berupa string"),
-    body("email").optional().isEmail().withMessage("Email harus valid"),
+    body("email")
+      .optional()
+      .isEmail()
+      .withMessage("Email harus valid"),
   ],
   validationMiddleware,
   userController.updateProfile
