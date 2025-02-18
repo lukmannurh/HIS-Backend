@@ -1,18 +1,17 @@
 import db from "../models/index.js";
 import logger from "../middlewares/loggingMiddleware.js";
-import { checkHoax } from "../services/hoaxChecker.js";
-
-// Import policy
 import {
   canViewAllReports,
   canViewReport,
   canCreateReport,
   canUpdateReport,
   canDeleteReport,
+  canChangeReportStatus,
 } from "../policies/reportPolicy.js";
-
+import { checkHoax } from "../services/hoaxChecker.js";
 const Report = db.Report;
-const User = db.User; // Untuk join, jika diperlukan
+const ArchivedReport = db.ArchivedReport;
+const User = db.User;
 
 /**
  * CREATE report
@@ -279,6 +278,50 @@ export async function deleteReport(req, res) {
     return res.json({ message: "Report berhasil dihapus" });
   } catch (error) {
     logger.error(`Error in deleteReport: ${error.message}`);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export async function archiveReportByStatus(req, res) {
+  try {
+    const { reportId } = req.params;
+    const { status } = req.body; // ekspektasi: status "selesai"
+
+    if (status !== "selesai") {
+      return res
+        .status(400)
+        .json({ message: "Status harus 'selesai' untuk arsip" });
+    }
+
+    if (!canChangeReportStatus(req.user)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const report = await Report.findOne({ where: { id: reportId } });
+    if (!report) {
+      return res.status(404).json({ message: "Report tidak ditemukan" });
+    }
+
+    // Pindahkan laporan ke tabel arsip
+    await ArchivedReport.create({
+      id: report.id, // gunakan ID yang sama jika diperlukan
+      title: report.title,
+      content: report.content,
+      validationStatus: report.validationStatus,
+      validationDetails: report.validationDetails,
+      relatedNews: report.relatedNews,
+      userId: report.userId, // simpan userId untuk referensi
+    });
+
+    // Hapus laporan dari tabel Reports
+    await report.destroy();
+
+    logger.info(
+      `Report dengan ID ${reportId} telah diarsipkan oleh user ${req.user.id}`
+    );
+    return res.json({ message: "Laporan berhasil diarsipkan" });
+  } catch (error) {
+    logger.error(`Error in archiveReportByStatus: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }

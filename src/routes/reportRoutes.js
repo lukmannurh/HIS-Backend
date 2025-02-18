@@ -5,15 +5,14 @@ import {
   getReportById,
   updateReport,
   deleteReport,
+  archiveReportByStatus,
 } from "../controllers/reportController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
-
 import { body, param } from "express-validator";
 import { validationMiddleware } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
 
-// POST /api/reports - create
 router.post(
   "/",
   authMiddleware,
@@ -29,10 +28,8 @@ router.post(
   createReport
 );
 
-// GET /api/reports - getAll
 router.get("/", authMiddleware, getAllReports);
 
-// GET /api/reports/:reportId
 router.get(
   "/:reportId",
   authMiddleware,
@@ -46,7 +43,6 @@ router.get(
   getReportById
 );
 
-// PUT /api/reports/:reportId - update
 router.put(
   "/:reportId",
   authMiddleware,
@@ -63,7 +59,6 @@ router.put(
   updateReport
 );
 
-// DELETE /api/reports/:reportId
 router.delete(
   "/:reportId",
   authMiddleware,
@@ -75,6 +70,24 @@ router.delete(
   ],
   validationMiddleware,
   deleteReport
+);
+
+// Endpoint untuk mengarsipkan laporan (memindahkan ke tabel arsip)
+// Hanya menerima status "selesai"
+router.put(
+  "/:reportId/status",
+  authMiddleware,
+  [
+    param("reportId")
+      .isString()
+      .notEmpty()
+      .withMessage("ID laporan harus diisi"),
+    body("status")
+      .isIn(["diproses", "selesai"])
+      .withMessage("Status harus 'diproses' atau 'selesai'"),
+  ],
+  validationMiddleware,
+  archiveReportByStatus
 );
 
 export default router;
