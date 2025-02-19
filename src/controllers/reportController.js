@@ -9,17 +9,13 @@ import {
   canChangeReportStatus,
 } from "../policies/reportPolicy.js";
 import { checkHoax } from "../services/hoaxChecker.js";
+
 const Report = db.Report;
 const ArchivedReport = db.ArchivedReport;
 const User = db.User;
 
-/**
- * CREATE report
- * - Owner/Admin/User => semua bisa membuat (jika canCreateReport return true)
- */
 export async function createReport(req, res) {
   try {
-    // Cek policy
     if (!canCreateReport(req.user.role)) {
       return res
         .status(403)
@@ -28,10 +24,18 @@ export async function createReport(req, res) {
 
     const { title, content, link } = req.body;
     const userId = req.user.id;
+    let documentUrl = null;
 
-    // Contoh validasi hoax
+    // Jika ada file yang diupload, buat URL untuk file tersebut
+    if (req.file) {
+      documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
+    }
+
+    // Panggil fungsi checkHoax dengan parameter tambahan documentUrl
     const { validationStatus, validationDetails, relatedNews } =
-      await checkHoax(content, link);
+      await checkHoax(content, link, documentUrl);
 
     const newReport = await Report.create({
       title,
@@ -40,6 +44,7 @@ export async function createReport(req, res) {
       validationStatus,
       validationDetails,
       relatedNews,
+      document: documentUrl, // simpan URL dokumen jika ada
     });
 
     logger.info(`Report created by user ID: ${userId}`, {

@@ -8,123 +8,88 @@ dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * Memanggil Gemini 1.5 Flash untuk menilai statement,
- * lalu beri output "Hoaks"/"Asli" dengan persentase, penjelasan komprehensif, dan link berita terkait yang di-scrape dari situs resmi.
- *
- * @param {string} content - Pernyataan pengguna (dalam Bahasa Indonesia)
- * @param {string} link - Link (opsional) yang diberikan pengguna
- * @returns {Object} { validationStatus, validationDetails, relatedNews }
- */
-export async function checkHoax(content, link) {
+export async function checkHoax(content, link, document) {
   try {
-    logger.info(`Memulai fact-checking untuk konten: "${content}"`, { timestamp: new Date().toISOString() });
-
+    logger.info(`Memulai ekstraksi kata kunci untuk konten: "${content}"`, { timestamp: new Date().toISOString() });
+    
+    // Ekstraksi kata kunci dari konten
+    const allKeywords = extractKeywords(content, 3);
+    const keywords = allKeywords.join(",");
+    logger.info(`Kata kunci yang diekstrak: "${keywords}"`, { timestamp: new Date().toISOString() });
+    
+    // Lakukan scraping related news menggunakan kata kunci
+    let relatedNews = [];
+    if (keywords) {
+      relatedNews = await scrapeDetikSearch(keywords, 5);
+    }
+    
+    logger.info(`Memulai fact-checking dengan Gemini untuk konten: "${content}"`, { timestamp: new Date().toISOString() });
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Jika dokumen ada, tambahkan informasi dokumen ke prompt
+    const documentPart = document ? `\nDokumen: ${document}` : "";
+    
     const promptText = `
-Anda adalah fact-checker multibahasa dengan keahlian dalam mendeteksi hoaks (terutama dalam Bahasa Inggris dan Bahasa Indonesia).
-Pengguna mengirimkan pernyataan dan link opsional.
+Anda adalah fact-checker multibahasa dengan keahlian dalam mendeteksi hoaks dan melakukan validasi informasi dengan bahasa yang berpendidikan dan komprehensif.
 Tugas Anda:
-1. Tentukan apakah pernyataan tersebut "Hoaks" atau "Asli".
-2. Berikan penjelasan yang komprehensif, detail, dan ilmiah atau dengan bahasa yang berpendidikan.
-3. Sertakan sumber berita terkait di baris terakhir. Jika tidak ada sumber, biarkan baris terakhir kosong.
+1. Evaluasi pernyataan berikut dan tentukan status validasinya:
+   - "Hoax" jika pernyataan tersebut jelas tidak benar.
+   - "Valid" jika pernyataan tersebut didukung oleh bukti yang kuat.
+   - "Diragukan" jika informasi tidak cukup atau Anda kurang yakin.
+2. Berikan penjelasan komprehensif yang mendukung keputusan Anda.
+3. Sertakan sumber berita terkait pada baris ketiga. Jika tidak ada sumber, gunakan "-" sebagai placeholder.
 
-Format output:
-Hoaks / Asli 
-[Penjelasan komprehensif]
-[sumber berita terkait]
+Format output (3 baris):
+<Status Validasi>
+<Penjelasan Komprehensif>
+<Sumber Berita>
 
 Pernyataan: "${content}"
-Link: "${link || ""}"
+Link: "${link || ""}"${documentPart}
 
-Pastikan HANYA tiga baris ini yang dioutput.
+Pastikan output selalu terdiri atas 3 baris.
     `;
-
+    
     const prompt = [{ text: promptText }];
     const result = await model.generateContent(prompt);
-
-    // result.response = ReadableStream
     const response = await result.response;
-    const textOutput = await response.text(); // string
+    const textOutput = await response.text();
 
     if (!textOutput) {
-      logger.error("Gemini response kosong atau terjadi error.", { timestamp: new Date().toISOString() });
+      logger.error("Gemini tidak mengembalikan output.", { timestamp: new Date().toISOString() });
       return {
-        validationStatus: "unknown",
+        validationStatus: "diragukan",
         validationDetails: "Gemini tidak mengembalikan output",
-        relatedNews: [],
+        relatedNews,
       };
     }
-
-    // Tampilkan raw output dari Gemini untuk debug
+    
     logger.info(`Gemini raw output:\n${textOutput.trim()}`, { timestamp: new Date().toISOString() });
-
-    // Ekstrak hasil
-    const lines = textOutput
-      .trim()
-      .split("\n")
-      .map((l) => l.trim());
-
-    if (lines.length < 3) {
-      // fallback jika format output tidak sesuai
-      logger.warn(`Output Gemini tidak dalam format 3 baris yang diharapkan. Semua = ${JSON.stringify(lines)}`, { timestamp: new Date().toISOString() });
-      return {
-        validationStatus: "unknown",
-        validationDetails: `Gemini tidak pasti: ${textOutput}`,
-        relatedNews: [],
-      };
+    let lines = textOutput.trim().split("\n").map(l => l.trim());
+    while (lines.length < 3) {
+      lines.push("");
     }
-
-    const judgementLine = lines[0];
-    const judgementParts = judgementLine.split(" - ");
-    const judgement = judgementParts[0].toLowerCase();
-    const percentage = judgementParts[1] ? judgementParts[1].replace('%', '').trim() : null;
+    
+    const statusLine = lines[0].toLowerCase();
     const explanation = lines[1] || "";
-    const userLink = lines[2] || "";
-
-    let validationStatus = "unknown";
-    if (judgement.includes("hoaks") || judgement.includes("hoax")) {
+    const sourceLine = lines[2] || "";
+    
+    let validationStatus = "diragukan"; // default jika tidak ada kata kunci yang jelas
+    if (statusLine.includes("hoax")) {
       validationStatus = "hoax";
-    } else if (judgement.includes("asli") || judgement.includes("true")) {
+    } else if (statusLine.includes("valid") || statusLine.includes("benar") || statusLine.includes("asli")) {
       validationStatus = "valid";
-    } else {
-      // fallback jika tidak ada keyword yang dikenali
-      logger.warn("Gemini tidak mengeluarkan 'Hoaks' atau 'Asli'.", { timestamp: new Date().toISOString() });
-      validationStatus = "unknown";
     }
-
-    // Buat detail JSON
+    
     const validationDetails = JSON.stringify({
       gemini: {
-        output: textOutput, // teks mentah
-        judgement, // baris 0
-        percentage: percentage ? `${percentage}%` : null, // baris 0
-        explanation, // baris 1
-        link: userLink, // baris 2
+        output: textOutput,
+        statusLine,
+        explanation,
+        source: sourceLine,
       },
     });
-
-    // Ekstrak kata kunci dari konten pengguna untuk mencari berita terkait
-    const allKeywords = extractKeywords(content, 3); // Membatasi ke 3 kata kunci
-    const keywords = allKeywords.join(","); // Menggabungkan kata kunci dengan koma
-    logger.info(`Kata kunci yang diekstrak: "${keywords}"`, { timestamp: new Date().toISOString() });
-
-    if (!keywords) {
-      logger.warn(`Tidak ada kata kunci yang diekstrak dari konten: "${content}"`, { timestamp: new Date().toISOString() });
-      return {
-        validationStatus,
-        validationDetails,
-        relatedNews: [],
-      };
-    }
-
-    // Scrape berita terkait dari detik.com berdasarkan kata kunci
-    const relatedNews = await scrapeDetikSearch(keywords, 5); // Membatasi ke 5 artikel
-
-    if (relatedNews.length === 0) {
-      logger.warn(`Tidak ada berita terkait yang dihasilkan untuk query: "${keywords}"`, { timestamp: new Date().toISOString() });
-    }
-
+    
     return {
       validationStatus,
       validationDetails,
@@ -133,14 +98,10 @@ Pastikan HANYA tiga baris ini yang dioutput.
   } catch (error) {
     logger.error("Error dalam checkHoax (Gemini): " + error.message, {
       timestamp: new Date().toISOString(),
-      error: {
-        message: error.message,
-        stack: error.stack,
-        ...error,
-      },
+      error: { message: error.message, stack: error.stack }
     });
     return {
-      validationStatus: "unknown",
+      validationStatus: "diragukan",
       validationDetails: "Error checking hoax via Gemini",
       relatedNews: [],
     };

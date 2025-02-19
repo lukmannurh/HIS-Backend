@@ -5,7 +5,7 @@ import morgan from "morgan";
 import authRoutes from "./routes/authRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import archiveRoutes from "./routes/archiveRoutes.js"; 
+import archiveRoutes from "./routes/archiveRoutes.js";
 import logger from "./middlewares/loggingMiddleware.js";
 import setupSwagger from "./swagger/swagger.js";
 
@@ -22,6 +22,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Sajikan folder uploads sebagai static
+app.use("/uploads", express.static("uploads"));
+
 app.use(
   morgan("combined", {
     stream: { write: (message) => logger.info(message.trim()) }
@@ -31,7 +34,7 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/archives", archiveRoutes);  // Daftarkan route arsip
+app.use("/api/archives", archiveRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({ message: "Endpoint tidak ditemukan" });

@@ -16,17 +16,22 @@ export default (sequelize) => {
       allowNull: false,
     },
     validationStatus: {
-      type: DataTypes.STRING, // 'hoax', 'valid', 'unknown'
-      defaultValue: "unknown",
+      type: DataTypes.ENUM("valid", "hoax", "diragukan"),
+      defaultValue: "diragukan",
     },
     validationDetails: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    relatedNews: { // Field baru
-      type: DataTypes.JSON, // Menyimpan sebagai JSON
+    relatedNews: {
+      type: DataTypes.JSON,
       allowNull: true,
     },
+    // Field untuk menyimpan URL atau path file upload
+    document: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    }
   }, {
     tableName: "Reports",
     timestamps: true,
