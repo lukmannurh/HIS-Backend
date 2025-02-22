@@ -27,7 +27,7 @@ export default (sequelize) => {
       type: DataTypes.JSON,
       allowNull: true,
     },
-    // Field untuk menyimpan URL atau path file upload
+    // Field untuk menyimpan URL atau path file upload (opsional)
     document: {
       type: DataTypes.TEXT,
       allowNull: true,

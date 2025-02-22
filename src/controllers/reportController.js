@@ -28,9 +28,7 @@ export async function createReport(req, res) {
 
     // Jika ada file yang diupload, buat URL untuk file tersebut
     if (req.file) {
-      documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      documentUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     }
 
     // Panggil fungsi checkHoax dengan parameter tambahan documentUrl
