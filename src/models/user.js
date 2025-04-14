@@ -7,49 +7,53 @@ const User = (sequelize) => {
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
+        primaryKey: true
       },
       username: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
+        unique: true
       },
       email: {
         type: DataTypes.STRING,
-        allowNull: true, // Mengizinkan NULL
+        allowNull: false,
         unique: true,
         validate: {
-          isEmail: true,
-        },
+          isEmail: true
+        }
       },
       password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: false
       },
       role: {
         type: DataTypes.ENUM("admin", "owner", "user"),
-        defaultValue: "user",
+        defaultValue: "user"
       },
       fullName: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false
       },
       address: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: true
       },
       age: {
         type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: true
       },
       gender: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: true
       },
+      photo: {
+        type: DataTypes.STRING,
+        allowNull: true
+      }
     },
     {
       tableName: "Users",
-      timestamps: true,
+      timestamps: true
     }
   );
 

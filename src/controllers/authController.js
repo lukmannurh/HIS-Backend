@@ -8,18 +8,42 @@ import { canRegisterUser } from "../policies/authPolicy.js";
 
 /**
  * REGISTER Controller
- *   - Memanggil canRegisterUser untuk cek apakah role user yang login diizinkan
- *   - Memanggil registerUser dari authService
+ * - Hanya Owner dan Admin yang dapat membuat akun.
+ * - Owner dapat memilih role "admin" atau "user".
+ * - Admin hanya dapat membuat akun dengan role "user".
  */
 export const register = async (req, res) => {
   try {
-    // Policy check
-    if (!canRegisterUser({ id: req.userId, role: req.userRole })) {
-      return res.status(403).json({ message: "Forbidden" });
+    const currentUser = req.user; // authMiddleware diharapkan sudah menetapkan req.user
+    let { username, email, fullName, password, role } = req.body;
+
+    // Validasi field wajib
+    if (!username || !email || !fullName || !password) {
+      return res.status(400).json({
+        message: "Username, email, full name, and password are required",
+      });
     }
 
-    const { username, email, password, role } = req.body;
-    const user = await registerUser({ username, email, password, role });
+    // Jika role tidak diberikan, default ke "user"
+    if (!role) {
+      role = "user";
+    }
+
+    // Cek kebijakan pendaftaran
+    if (!canRegisterUser(currentUser, role)) {
+      return res.status(403).json({
+        message:
+          "Forbidden: Anda tidak diizinkan membuat akun dengan role tersebut",
+      });
+    }
+
+    const user = await registerUser({
+      username,
+      email,
+      fullName,
+      password,
+      role,
+    });
     return res.status(201).json({
       message: "User berhasil dibuat",
       data: user,
@@ -28,7 +52,6 @@ export const register = async (req, res) => {
     if (error.status && error.message) {
       return res.status(error.status).json({ message: error.message });
     }
-    // Error internal server
     return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -23,6 +23,7 @@ const fileFilter = (req, file, cb) => {
   // Izinkan tipe file gambar dan dokumen
   const allowedMimeTypes = [
     "image/jpeg",
+    "image/jpg",
     "image/png",
     "image/svg+xml",
     "application/pdf",

@@ -23,7 +23,10 @@ app.use(cors({
 app.use(express.json());
 
 // Sajikan folder uploads sebagai static
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); // atau set sesuai asal yang diizinkan, misalnya "http://localhost:3001"
+  next();
+}, express.static("uploads"));
 
 app.use(
   morgan("combined", {

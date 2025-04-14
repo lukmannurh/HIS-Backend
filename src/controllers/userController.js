@@ -75,6 +75,7 @@ export const getUserProfile = async (req, res) => {
         "address",
         "age",
         "gender",
+        "photo", // tambahkan ini untuk menyertakan foto profil
         "createdAt",
         "updatedAt",
       ],
@@ -216,7 +217,7 @@ export const deleteAdmin = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // ID user yang sedang login
+    const userId = req.user.id;
     const { password, fullName, email, address, age, gender } = req.body;
     const requestingUser = { id: req.user.id, role: req.user.role };
 
@@ -225,7 +226,6 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // Cek kebijakan update user
     if (
       !canUpdateUser(requestingUser, {
         id: currentUser.id,
@@ -235,7 +235,6 @@ export const updateProfile = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Update fields
     if (password) {
       const hashed = await bcrypt.hash(password, 10);
       currentUser.password = hashed;
@@ -245,6 +244,11 @@ export const updateProfile = async (req, res) => {
     if (age !== undefined) currentUser.age = age;
     if (gender !== undefined) currentUser.gender = gender;
     if (email !== undefined) currentUser.email = email;
+    if (req.file) {
+      currentUser.photo = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
+    }
 
     await currentUser.save();
 
@@ -259,12 +263,62 @@ export const updateProfile = async (req, res) => {
         address: currentUser.address,
         age: currentUser.age,
         gender: currentUser.gender,
+        photo: currentUser.photo,
         createdAt: currentUser.createdAt,
         updatedAt: currentUser.updatedAt,
       },
     });
   } catch (error) {
     logger.error(`Error in updateProfile: ${error.message}`);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * UPDATE USER ROLE
+ * - Endpoint ini hanya boleh diakses oleh Owner.
+ * - Owner dapat mengubah role user (menuju "admin" atau "user").
+ */
+export const updateUserRole = async (req, res) => {
+  try {
+    // Pastikan hanya Owner yang dapat mengakses (tambahkan pengecekan ekstra meskipun juga ada middleware)
+    if (req.user.role !== "owner") {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: Hanya Owner yang dapat mengubah role" });
+    }
+
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Role yang valid hanya "admin" atau "user"
+    if (role !== "admin" && role !== "user") {
+      return res
+        .status(400)
+        .json({ message: "Role harus 'admin' atau 'user'" });
+    }
+
+    const targetUser = await User.findByPk(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    targetUser.role = role;
+    await targetUser.save();
+
+    logger.info(
+      `Role user dengan ID ${userId} diubah menjadi ${role} oleh Owner ${req.user.id}`
+    );
+    return res.json({
+      message: "Role user berhasil diperbarui",
+      data: {
+        id: targetUser.id,
+        username: targetUser.username,
+        role: targetUser.role,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error in updateUserRole: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

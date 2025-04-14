@@ -4,6 +4,7 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 import { body, param } from "express-validator";
 import { validationMiddleware } from "../middlewares/validationMiddleware.js";
 import ownerMiddleware from "../middlewares/ownerMiddleware.js";
+import upload from "../middlewares/upload.js";
 
 const router = express.Router();
 
@@ -81,6 +82,7 @@ router.delete(
 router.put(
   "/profile",
   authMiddleware,
+  upload.single("photo"),
   [
     body("password")
       .optional()
@@ -100,15 +102,26 @@ router.put(
       .withMessage("Age harus berupa integer positif"),
     body("gender")
       .optional()
-      .isString()
-      .withMessage("Gender harus berupa string"),
-    body("email")
-      .optional()
-      .isEmail()
-      .withMessage("Email harus valid"),
+      .isIn(["Pria", "Wanita"])
+      .withMessage("Gender harus berupa 'Pria' atau 'Wanita'"),
+    body("email").optional().isEmail().withMessage("Email harus valid"),
   ],
   validationMiddleware,
   userController.updateProfile
+);
+
+// Route untuk mengubah role user (hanya Owner)
+router.put(
+  "/:userId/role",
+  authMiddleware,
+  ownerMiddleware, // Pastikan hanya owner yang dapat mengakses
+  [
+    body("role")
+      .isIn(["admin", "user"])
+      .withMessage("Role harus berupa 'admin' atau 'user'"),
+  ],
+  validationMiddleware,
+  userController.updateUserRole
 );
 
 export default router;
