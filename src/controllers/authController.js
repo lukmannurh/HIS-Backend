@@ -20,7 +20,7 @@ export const register = async (req, res) => {
     // Validasi field wajib
     if (!username || !email || !fullName || !password) {
       return res.status(400).json({
-        message: "Username, email, full name, and password are required",
+        message: "Username, email, full name, and password are required"
       });
     }
 
@@ -33,28 +33,21 @@ export const register = async (req, res) => {
     if (!canRegisterUser(currentUser, role)) {
       return res.status(403).json({
         message:
-          "Forbidden: Anda tidak diizinkan membuat akun dengan role tersebut",
+          "Forbidden: Anda tidak diizinkan membuat akun dengan role tersebut"
       });
     }
 
-    const user = await registerUser({
-      username,
-      email,
-      fullName,
-      password,
-      role,
-    });
+    const user = await registerUser({ username, email, fullName, password, role });
     return res.status(201).json({
       message: "User berhasil dibuat",
       data: user,
     });
   } catch (error) {
-    if (error.status && error.message) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error in register controller:", error);
+    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
   }
 };
+
 
 /**
  * LOGIN Controller

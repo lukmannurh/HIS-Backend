@@ -10,38 +10,33 @@ import logger from "../middlewares/loggingMiddleware.js";
 const User = db.User;
 const RefreshTokenModel = db.RefreshToken;
 
-export const registerUser = async ({ username, password, role }) => {
-  // Validasi role
-  if (role && !["admin", "user"].includes(role)) {
-    logger.warn(`Role tidak valid: ${role}`);
-    throw { status: 400, message: "Role harus 'admin' atau 'user'" };
-  }
-
-  // Cek keberadaan user
+export const registerUser = async ({ username, email, fullName, password, role }) => {
+  // Cek apakah username sudah ada
   const existingUser = await User.findOne({ where: { username } });
   if (existingUser) {
-    logger.warn(
-      `Percobaan registrasi dengan username yang sudah ada: ${username}`
-    );
     throw { status: 400, message: "Username sudah ada" };
   }
 
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Buat user baru
+  // Buat user baru (pastikan properti fullName dan email sesuai dengan model dan migration)
   const newUser = await User.create({
     username,
+    email,
+    fullName,
     password: hashedPassword,
-    role: role || "user",
+    role: role || 'user'
   });
 
-  logger.info(`User baru terdaftar: ${username} dengan role ${newUser.role}`);
+  logger.info(`User baru dibuat: ${username} dengan role ${newUser.role}`);
 
   return {
     id: newUser.id,
     username: newUser.username,
-    role: newUser.role,
+    email: newUser.email,
+    fullName: newUser.fullName,
+    role: newUser.role
   };
 };
 
