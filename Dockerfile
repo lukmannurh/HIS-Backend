@@ -1,18 +1,17 @@
 # Dockerfile
 FROM node:18-alpine
 
-# Buat direktori kerja
 WORKDIR /usr/src/app
 
-# Salin package.json & lockfile, lalu install dependencies production
+# Copy package files dan install semua dependencies (termasuk sequelize-cli)
 COPY package*.json ./
-RUN npm install --production
+RUN npm install
 
-# Salin seluruh source code
+# Copy seluruh source code
 COPY . .
 
-# Expose port sesuai PORT di .env (default 3000)
+# Expose port
 EXPOSE 3000
 
-# Jalankan migrasi dan start aplikasi
-CMD ["sh", "-c", "npm run migrate && npm start"]
+# Jalankan migrasi lalu start server
+CMD ["sh", "-c", "npx sequelize-cli db:migrate --config sequelize.config.cjs && npm start"]
