@@ -3,50 +3,51 @@ version: "3.8"
 services:
   db:
     image: postgres:15-alpine
-    container_name: hoax-checker-db
+    container_name: hoax_checker_db
+    env_file:
+      - .env
     environment:
+      # PostgreSQL hanya butuh tiga var ini
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   app:
-    build: .
-    container_name: hoax-checker-app
-    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hoax_checker_app
+    env_file:
+      - .env
+    depends_on:
+      - db
     ports:
-      - "3000:3000"
+      - "${PORT}:3000"
     environment:
+      # Database connection
       DB_HOST: db
-      DB_PORT: 5432
+      DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
+      # JWT
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      HF_API_TOKEN: ${HF_API_TOKEN}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      # API keys & encryption
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GOOGLE_FACTCHECK_API_KEY: ${GOOGLE_FACTCHECK_API_KEY}
-      NODE_ENV: ${NODE_ENV}
-    depends_on:
-      - db
-
-  grafana:
-    image: grafana/grafana-oss:latest
-    container_name: hoax-checker-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: "admin"  # atau dari env
-    depends_on:
-      - db
-    volumes:
-      - grafana_data:/var/lib/grafana
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Aplikasi
+      PORT: ${PORT}
+      NODE_ENV: production
+    # (opsional) mount kode ke container untuk live-reload jika dev
+    # volumes:
+    #   - ./:/usr/src/app
 
 volumes:
   db_data:
-  grafana_data:

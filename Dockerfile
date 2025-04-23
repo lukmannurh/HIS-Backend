@@ -1,20 +1,18 @@
-# 1. Gunakan base image Node LTS
+# Dockerfile
 FROM node:18-alpine
 
-# 2. Buat direktori kerja
+# Buat direktori kerja
 WORKDIR /usr/src/app
 
-# 3. Salin package.json dan package-lock.json
+# Salin package.json & lockfile, lalu install dependencies production
 COPY package*.json ./
+RUN npm install --production
 
-# 4. Install dependencies
-RUN npm install
-
-# 5. Salin semua source code ke container
+# Salin seluruh source code
 COPY . .
 
-# 6. Expose port
+# Expose port sesuai PORT di .env (default 3000)
 EXPOSE 3000
 
-# 7. Jalankan perintah
-CMD ["npm", "run", "start"]
+# Jalankan migrasi dan start aplikasi
+CMD ["sh", "-c", "npm run migrate && npm start"]
