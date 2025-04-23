@@ -44,7 +44,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       # Aplikasi
       PORT: ${PORT}
-      NODE_ENV: production
+      NODE_ENV: development   
     # (opsional) mount kode ke container untuk live-reload jika dev
     # volumes:
     #   - ./:/usr/src/app
