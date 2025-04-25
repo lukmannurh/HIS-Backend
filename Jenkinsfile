@@ -2,7 +2,11 @@ pipeline {
   agent any
 
   tools {
-    nodejs "20.x"  
+    nodejs "20.x"
+  }
+
+  environment {
+    DEPLOY_DIR = '/opt/HIS-Backend'
   }
 
   stages {
@@ -19,18 +23,19 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Sync to Deploy Dir') {
       steps {
-        dir('/opt/HIS-Backend') {
-          sh 'docker-compose build'
-        }
+        sh """
+          rsync -av --delete ${env.WORKSPACE}/ ${DEPLOY_DIR}/
+        """
       }
     }
 
-    stage('Deploy to VPS') {
+    stage('Build & Deploy') {
       steps {
-        dir('/opt/HIS-Backend') {
-          sh 'docker-compose down'
+        dir("${DEPLOY_DIR}") {
+          sh 'docker-compose down || true'
+          sh 'docker-compose build'
           sh 'docker-compose up -d'
         }
       }
@@ -39,10 +44,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ CI/CD berhasil: HIS-Backend ter‐deploy!'
+      echo '✅ Build & deploy sukses!'
     }
     failure {
-      echo '❌ CI/CD gagal, cek log di Jenkins.'
+      echo '❌ Ada error, cek log build.'
     }
   }
 }
