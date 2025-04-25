@@ -1,83 +1,48 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        // Mendefinisikan versi Node.js
-        NODE_VERSION = '20.x'
-        // Mendefinisikan variabel lingkungan (jika ada)
-        // Untuk keamanan, variabel sensitif harus disimpan di kredensial Jenkins
+  tools {
+    nodejs "20.x"  
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
 
-    tools {
-        // Instalasi Node.js menggunakan plugin NodeJS
-        nodejs NODE_VERSION
+    stage('Install & Test') {
+      steps {
+        sh 'npm install'
+        sh 'npm test'
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                // Clone source code
-                git branch: 'main', url: 'https://github.com/lukmannurh/HIS-Backend.git'
-            }
+    stage('Build Docker Image') {
+      steps {
+        dir('/opt/HIS-Backend') {
+          sh 'docker-compose build'
         }
-
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                sh 'npm run lint'
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh 'npm run test'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t my-hoax-checker-app:latest .'
-            }
-        }
-
-        stage('Push Docker Image') {
-            when {
-                expression { return env.PUSH_DOCKER == 'true' }
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                    sh 'docker tag my-hoax-checker-app:latest my-dockerhub-namespace/my-hoax-checker-app:latest'
-                    sh 'docker push my-dockerhub-namespace/my-hoax-checker-app:latest'
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                // Deploy menggunakan docker-compose
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
-            }
-        }
+      }
     }
 
-    post {
-        always {
-            // Cleanup
-            sh 'docker logout || true'
-            cleanWs()
+    stage('Deploy to VPS') {
+      steps {
+        dir('/opt/HIS-Backend') {
+          sh 'docker-compose down'
+          sh 'docker-compose up -d'
         }
-        success {
-            echo 'Pipeline berhasil!'
-        }
-        failure {
-            echo 'Pipeline gagal!'
-        }
+      }
     }
+  }
+
+  post {
+    success {
+      echo '✅ CI/CD berhasil: HIS-Backend ter‐deploy!'
+    }
+    failure {
+      echo '❌ CI/CD gagal, cek log di Jenkins.'
+    }
+  }
 }
