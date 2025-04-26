@@ -33,7 +33,7 @@ pipeline {
         // gunakan SSH-Agent plugin, credentials ID 'vps-deploy-ssh'
         sshagent (credentials: ['vps-deploy-ssh']) {
           sh '''
-            ssh -o StrictHostKeyChecking=no deployer@203.194.112.226 << 'EOF'
+            ssh -o StrictHostKeyChecking=no root@203.194.112.226 << 'EOF'
               set -xe
               cd /opt/HIS-Backend
               git pull origin main
