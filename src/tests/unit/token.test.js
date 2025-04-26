@@ -31,7 +31,7 @@ describe("Token Utilities", () => {
       const token = generateAccessToken(payload);
 
       expect(jwt.sign).toHaveBeenCalledWith(payload, process.env.JWT_SECRET, {
-        expiresIn: "1d",
+        expiresIn: "15m",
       });
       expect(encrypt).toHaveBeenCalledWith("accessTokenMock");
       expect(token).toBe("encryptedAccessTokenMock");
