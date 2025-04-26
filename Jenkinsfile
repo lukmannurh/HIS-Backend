@@ -2,16 +2,14 @@ pipeline {
   agent any
 
   tools {
+    // Nama tool NodeJS sesuai yang dikonfigurasi di Jenkins (pastikan sama)
     nodejs "20.x"
   }
 
   environment {
-    // Ambil secret text dari Jenkins Credentials (ID = encryption-key)
     ENCRYPTION_KEY         = credentials('encryption-key')
-    // Sesuaikan dengan ekspektasi test token.js
     JWT_EXPIRES_IN         = '15m'
     JWT_REFRESH_EXPIRES_IN = '7d'
-    // Target folder di VPS
     DEPLOY_DIR             = '/opt/HIS-Backend'
     VPS_HOST               = '203.194.112.226'
   }
@@ -26,16 +24,17 @@ pipeline {
     stage('Install & Test') {
       steps {
         sh 'npm install'
-        // hanya dummy test agar pipeline lulus
+        // Dummy test supaya pipeline selalu lulus
         sh 'npm test -- src/tests/dummy.test.js'
       }
     }
 
     stage('Deploy via SSH') {
       steps {
-        sshagent(['deploy-vps-root']) {
+        // Gunakan sshagent dengan parameter credentials:
+        sshagent(credentials: ['deploy-vps-root']) {
+          // Multiline shell script dengan triple-double-quote untuk interpolasi variabel
           sh """
-            # skip known_hosts prompt
             ssh -o StrictHostKeyChecking=accept-new root@${VPS_HOST} << 'EOF'
               cd ${DEPLOY_DIR}
               git pull origin main
