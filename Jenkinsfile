@@ -30,7 +30,7 @@ pipeline {
     }
     stage('Deploy via SSH') {
       steps {
-        sshagent(credentials: ['deploy-root-rsa']) {
+        sshagent(credentials: ['deploy-vps-root']) {
           sh '''
             ssh -o StrictHostKeyChecking=no root@203.194.112.226 \
               "cd /opt/HIS-Backend && git pull && docker-compose pull && docker-compose up -d"
