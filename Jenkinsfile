@@ -15,53 +15,42 @@ pipeline {
     DEPLOY_DIR               = '/opt/HIS-Backend'
   }
 
-  stages {
+ stages {
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
-
     stage('Install & Test') {
       steps {
         sh 'npm install'
-        // Agar pipeline tidak berhenti jika test gagal
-        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-          sh 'npm test -- src/tests/dummy.test.js'
-        }
+        // dummy test, atau test yang Anda butuhkan
+        sh 'npm test -- src/tests/dummy.test.js'
       }
     }
-
-    stage('Sync to Deploy Dir') {
+    stage('Deploy via SSH') {
       steps {
-        // Sinkron dari workspace Jenkins ke folder deploy di VPS
-        sh "rsync -av --delete ${env.WORKSPACE}/ ${DEPLOY_DIR}/"
-      }
-    }
-
-    stage('Build & Deploy') {
-      steps {
-        dir("${DEPLOY_DIR}") {
-          // Hentikan container lama (abaikan error jika belum ada)
-          sh 'docker-compose down || true'
-          // Build image baru
-          sh 'docker-compose build'
-          // Jalankan ulang container
-          sh 'docker-compose up -d'
+        // gunakan SSH-Agent plugin, credentials ID 'vps-deploy-ssh'
+        sshagent (credentials: ['vps-deploy-ssh']) {
+          sh '''
+            ssh -o StrictHostKeyChecking=no deployer@203.194.112.226 << 'EOF'
+              set -xe
+              cd /opt/HIS-Backend
+              git pull origin main
+              docker-compose down
+              docker-compose up -d --build
+            EOF
+          '''
         }
       }
     }
   }
-
   post {
     success {
-      echo '✅ Deploy selesai!'
-    }
-    unstable {
-      echo '⚠️ Build UNSTABLE (tests gagal), tapi deploy tetap dijalankan.'
+      echo '✅ Deployment sukses!'
     }
     failure {
-      echo '❌ Pipeline gagal sebelum deploy.'
+      echo '❌ Gagal deploy, cek log.'
     }
   }
 }
