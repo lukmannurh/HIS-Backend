@@ -30,16 +30,10 @@ pipeline {
     }
     stage('Deploy via SSH') {
       steps {
-        // gunakan SSH-Agent plugin, credentials ID 'vps-deploy-ssh'
-        sshagent (credentials: ['vps-deploy-ssh']) {
+        sshagent(credentials: ['deploy-root-rsa']) {
           sh '''
-            ssh -o StrictHostKeyChecking=no root@203.194.112.226 << 'EOF'
-              set -xe
-              cd /opt/HIS-Backend
-              git pull origin main
-              docker-compose down
-              docker-compose up -d --build
-            EOF
+            ssh -o StrictHostKeyChecking=no root@203.194.112.226 \
+              "cd /opt/HIS-Backend && git pull && docker-compose pull && docker-compose up -d"
           '''
         }
       }
