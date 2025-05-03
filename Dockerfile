@@ -1,17 +1,16 @@
-# === Stage 1: build & install deps ===
-FROM node:18-alpine AS builder
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm install --production
-COPY . .
-  
-# === Stage 2: runtime ===
 FROM node:18-alpine
+
 WORKDIR /usr/src/app
-# copy only built artifacts + deps
-COPY --from=builder /usr/src/app /usr/src/app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
 EXPOSE 3000
-CMD ["node", "src/server.js"]
+
+CMD ["npm", "run", "start"]
+
 
 # # Dockerfile
 # FROM node:18-alpine
