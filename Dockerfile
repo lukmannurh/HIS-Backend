@@ -1,31 +1,14 @@
+# his-api/Dockerfile
 FROM node:18-alpine
-
 WORKDIR /usr/src/app
 
+# install deps
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
+# copy source + migrate
 COPY . .
+RUN npm run migrate
 
 EXPOSE 3000
-
-CMD ["npm", "run", "start"]
-
-
-# # Dockerfile
-# FROM node:18-alpine
-
-# WORKDIR /usr/src/app
-
-# # Copy package files dan install semua dependencies (termasuk sequelize-cli)
-# COPY package*.json ./
-# RUN npm install
-
-# # Copy seluruh source code
-# COPY . .
-
-# # Expose port
-# EXPOSE 3000
-
-# # Jalankan migrasi lalu start server
-# CMD ["sh", "-c", "npx sequelize-cli db:migrate --config sequelize.config.cjs && npm start"]
+CMD ["npm", "start"]
