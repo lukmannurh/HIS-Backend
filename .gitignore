@@ -89,5 +89,3 @@ jspm_packages/
 *.trace
 
 
-# package lock file
-package-lock.json
