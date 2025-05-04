@@ -1,53 +1,36 @@
 pipeline {
-  agent { label 'vps' }
-
+  agent { label 'vps' }  // jalankan di agent yang sudah ada docker & node
   environment {
-    DEPLOY_DIR = "/opt/his-deploy"
-    COMPOSE_FILE = "${DEPLOY_DIR}/docker-compose.yml"
+    DEPLOY_DIR = '/opt/his-deploy'
   }
-
   stages {
     stage('Checkout') {
-      steps {
-        // clone repo ke workspace Jenkins
-        checkout scm
-      }
+      steps { checkout([$class: 'GitSCM',
+                       branches: [[name: '*/main']],
+                       userRemoteConfigs: [[url: 'https://github.com/lukmannurh/HIS-Backend.git']]]) }
     }
-
     stage('Build & Test') {
       steps {
-        // 1) Install dependencies
-        sh 'npm ci'
-        // 2) (Opsional) run tests
-        sh 'npm test -- src/tests/dummy.test.js'
+        dir("${WORKSPACE}") {
+          sh 'npm ci'
+          sh 'npm test -- src/tests/dummy.test.js'
+        }
       }
     }
-
-    stage('Build Docker Image') {
+    stage('Deploy') {
       steps {
-        // kita anggap docker-compose.yml punya service "api"
-        sh "cd ${DEPLOY_DIR} && docker-compose build api"
-      }
-    }
-
-    stage('Deploy to VPS') {
-      steps {
-        // jalankan/update container "api" saja
-        sh "cd ${DEPLOY_DIR} && docker-compose up -d api"
+        dir("${DEPLOY_DIR}/his-api") {
+          sh 'git pull origin main'
+        }
+        dir("${DEPLOY_DIR}") {
+          sh 'docker-compose build api'
+          sh 'docker-compose up -d api'
+        }
       }
     }
   }
-
   post {
-    success {
-      echo "✅ Deployment berhasil!"
-    }
-    failure {
-      echo "❌ Deployment GAGAL, cek log di atas."
-    }
+    success { echo "✅ Deploy sukses!" }
+    failure { echo "❌ Deploy gagal, periksa log." }
   }
 }
-
-
-
- 
