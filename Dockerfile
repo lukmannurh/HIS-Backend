@@ -3,17 +3,16 @@ FROM node:18-alpine
 
 WORKDIR /usr/src/app
 
-# 1) install deps
+# 1) Salin package.json, install dependency production
 COPY his-api/package*.json ./
 RUN npm ci --only=production
 
-# 2) salin seluruh kode
+# 2) Salin seluruh kode backend
 COPY his-api/ ./
 
-# 3) pastikan server bind ke 0.0.0.0 (lihat langkah 2 di bawah)
+# 3) Binding port
 ENV PORT=3000
-
 EXPOSE 3000
 
-# 4) jalankan langsung
+# 4) Jalankan server
 CMD ["npm", "start"]
