@@ -16,10 +16,11 @@ setupSwagger(app);
 
 app.use(helmet());
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: ["http://203.194.112.226"],
+  methods: ["GET","POST","PUT","DELETE"],
+  allowedHeaders: ["Content-Type","Authorization"],
 }));
+
 app.use(express.json());
 
 // Sajikan folder uploads sebagai static
