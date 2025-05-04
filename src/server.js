@@ -17,9 +17,14 @@ db.sequelize
 
     app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server berjalan di port ${PORT}`);
-      // logger.info(`Swagger docs available at http://localhost:${PORT}/api-docs`);
     });
   })
+
+//   app.listen(PORT, () => {
+//     logger.info(`Server berjalan di port ${PORT}`);
+//     logger.info(`Swagger docs available at http://localhost:${PORT}/api-docs`);
+//   });
+// })
   .catch((err) => {
     logger.error("Error sinkronisasi database:", err);
   });
