@@ -1,36 +1,42 @@
 pipeline {
-  agent { label 'vps' }  // jalankan di agent yang sudah ada docker & node
+  agent any
   environment {
     DEPLOY_DIR = '/opt/his-deploy'
   }
   stages {
     stage('Checkout') {
-      steps { checkout([$class: 'GitSCM',
-                       branches: [[name: '*/main']],
-                       userRemoteConfigs: [[url: 'https://github.com/lukmannurh/HIS-Backend.git']]]) }
+      steps {
+        checkout scm
+      }
     }
     stage('Build & Test') {
       steps {
-        dir("${WORKSPACE}") {
-          sh 'npm ci'
-          sh 'npm test -- src/tests/dummy.test.js'
+        sh 'npm ci'
+        sh 'npm test -- src/tests/dummy.test.js'
+      }
+    }
+    stage('Pre-Deploy Cleanup') {
+      steps {
+        dir("${DEPLOY_DIR}") {
+          sh '''
+            docker-compose stop api    || true
+            docker-compose rm -f api   || true
+            sleep 3
+          '''
         }
       }
     }
     stage('Deploy') {
       steps {
-        dir("${DEPLOY_DIR}/his-api") {
-          sh 'git pull origin main'
-        }
         dir("${DEPLOY_DIR}") {
-          sh 'docker-compose build api'
-          sh 'docker-compose up -d api'
+          sh 'git pull origin main'
+          sh 'docker-compose up -d --force-recreate api'
         }
       }
     }
   }
   post {
     success { echo "✅ Deploy sukses!" }
-    failure { echo "❌ Deploy gagal, periksa log." }
+    failure { echo "❌ Deploy gagal, cek log untuk detail." }
   }
 }
