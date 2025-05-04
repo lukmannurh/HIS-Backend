@@ -1,58 +1,53 @@
 pipeline {
-  agent any
-
-  tools {
-    // Nama tool NodeJS sesuai yang dikonfigurasi di Jenkins (pastikan sama)
-    nodejs "20.x"
-  }
+  agent { label 'vps' }
 
   environment {
-    ENCRYPTION_KEY         = credentials('encryption-key')
-    JWT_EXPIRES_IN         = '15m'
-    JWT_REFRESH_EXPIRES_IN = '7d'
-    DEPLOY_DIR             = '/opt/HIS-Backend'
-    VPS_HOST               = '203.194.112.226'
+    DEPLOY_DIR = "/opt/his-deploy"
+    COMPOSE_FILE = "${DEPLOY_DIR}/docker-compose.yml"
   }
 
   stages {
     stage('Checkout') {
       steps {
+        // clone repo ke workspace Jenkins
         checkout scm
       }
     }
 
-    stage('Install & Test') {
+    stage('Build & Test') {
       steps {
-        sh 'npm install'
-        // Dummy test supaya pipeline selalu lulus
+        // 1) Install dependencies
+        sh 'npm ci'
+        // 2) (Opsional) run tests
         sh 'npm test -- src/tests/dummy.test.js'
       }
     }
 
-    stage('Deploy via SSH') {
+    stage('Build Docker Image') {
       steps {
-        // Gunakan sshagent dengan parameter credentials:
-        sshagent(credentials: ['deploy-vps-root']) {
-          // Multiline shell script dengan triple-double-quote untuk interpolasi variabel
-          sh """
-            ssh -o StrictHostKeyChecking=accept-new root@${VPS_HOST} << 'EOF'
-              cd ${DEPLOY_DIR}
-              git pull origin main
-              docker-compose pull
-              docker-compose up -d --build
-            EOF
-          """
-        }
+        // kita anggap docker-compose.yml punya service "api"
+        sh "cd ${DEPLOY_DIR} && docker-compose build api"
+      }
+    }
+
+    stage('Deploy to VPS') {
+      steps {
+        // jalankan/update container "api" saja
+        sh "cd ${DEPLOY_DIR} && docker-compose up -d api"
       }
     }
   }
 
   post {
     success {
-      echo '✅ Deployment sukses!'
+      echo "✅ Deployment berhasil!"
     }
     failure {
-      echo '❌ Gagal deploy, cek log.'
+      echo "❌ Deployment GAGAL, cek log di atas."
     }
   }
 }
+
+
+
+ 
