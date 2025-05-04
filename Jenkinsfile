@@ -19,8 +19,8 @@ pipeline {
       steps {
         dir("${DEPLOY_DIR}") {
           sh '''
-            docker-compose stop api    || true
-            docker-compose rm -f api   || true
+            docker-compose stop api || true
+            docker-compose rm -f api  || true
             sleep 3
           '''
         }
@@ -28,15 +28,23 @@ pipeline {
     }
     stage('Deploy') {
       steps {
-        dir("${DEPLOY_DIR}") {
+        // 1) Update kode backend
+        dir("${DEPLOY_DIR}/his-api") {
           sh 'git pull origin main'
+        }
+        // 2) Relaunch container
+        dir("${DEPLOY_DIR}") {
           sh 'docker-compose up -d --force-recreate api'
         }
       }
     }
   }
   post {
-    success { echo "✅ Deploy sukses!" }
-    failure { echo "❌ Deploy gagal, cek log untuk detail." }
+    success {
+      echo "✅ Deploy sukses!"
+    }
+    failure {
+      echo "❌ Deploy gagal, cek log untuk detail."
+    }
   }
 }
