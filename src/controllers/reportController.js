@@ -69,45 +69,23 @@ export async function createReport(req, res) {
  */
 export async function getAllReports(req, res) {
   try {
-    const userRole = req.user.role;
-    const userId = req.user.id;
-
-    // cek hak akses
-    if (!canViewAllReports(userRole)) {
+    // Cek izin dasar
+    if (!canViewAllReports(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // opsi dasar query
-    const findOptions = {
+    // Ambil SEMUA laporan, tanpa filter role
+    const reports = await Report.findAll({
       order: [["createdAt", "DESC"]],
       include: [
         {
           model: db.User,
           as: "user",
-          attributes: ["id", "username", "role"],
+          attributes: ["id", "username", "role"], // tampilkan detail pembuat
         },
       ],
-    };
+    });
 
-    // filter khusus untuk admin
-    if (userRole === "admin") {
-      findOptions.include[0].where = {
-        [db.Sequelize.Op.or]: [{ role: "user" }, { id: userId, role: "admin" }],
-      };
-    }
-    // override untuk user: hanya tampilkan role saja
-    else if (userRole === "user") {
-      findOptions.include = [
-        {
-          model: db.User,
-          as: "user",
-          attributes: ["role"],
-        },
-      ];
-    }
-    // owner: gunakan include default (id, username, role)
-
-    const reports = await Report.findAll(findOptions);
     return res.json(reports);
   } catch (error) {
     logger.error(`Error in getAllReports: ${error.message}`);
