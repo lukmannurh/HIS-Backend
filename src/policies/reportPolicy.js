@@ -1,6 +1,5 @@
-// Fungsi-fungsi policy yang sudah ada...
 export function canViewAllReports(currentUserRole) {
-  return ["owner", "admin"].includes(currentUserRole);
+  return ["owner", "admin", "user"].includes(currentUserRole);
 }
 
 export function canViewReport(
@@ -13,10 +12,16 @@ export function canViewReport(
   }
   if (currentUser.role === "admin") {
     return (
-      targetReportOwnerRole === "user" || targetReportOwnerId === currentUser.id
+      targetReportOwnerRole === "user" ||
+      targetReportOwnerId === currentUser.id
     );
   }
-  return currentUser.id === targetReportOwnerId;
+  // user boleh lihat semua laporan
+  if (currentUser.role === "user") {
+    return true;
+  }
+  // role lain (jika ada) tidak diizinkan
+  return false;
 }
 
 export function canCreateReport(currentUserRole) {
@@ -33,10 +38,12 @@ export function canUpdateReport(
   }
   if (currentUser.role === "admin") {
     return (
-      targetReportOwnerRole === "user" || targetReportOwnerId === currentUser.id
+      targetReportOwnerRole === "user" ||
+      targetReportOwnerId === currentUser.id
     );
   }
-  return currentUser.id === targetReportOwnerId;
+  // user TIDAK boleh update apa pun
+  return false;
 }
 
 export function canDeleteReport(
@@ -44,6 +51,7 @@ export function canDeleteReport(
   targetReportOwnerRole,
   targetReportOwnerId
 ) {
+  // sama dengan update
   return canUpdateReport(
     currentUser,
     targetReportOwnerRole,
@@ -51,7 +59,7 @@ export function canDeleteReport(
   );
 }
 
-// Fungsi baru untuk memeriksa perubahan status laporan
+// hanya owner/admin yang boleh ubah status
 export function canChangeReportStatus(currentUser) {
   return currentUser.role === "owner" || currentUser.role === "admin";
 }
