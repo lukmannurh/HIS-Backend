@@ -27,7 +27,6 @@ export async function createReport(req, res) {
     const { title, content, link } = req.body;
     const userId = req.user.id;
     let documentUrl = null;
-
     if (req.file) {
       documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
         req.file.filename
@@ -63,25 +62,26 @@ export async function createReport(req, res) {
 
 /**
  * GET all reports
- *   - Owner => semua laporan + full user info
- *   - Admin  => laporan milik role="user" + laporan dirinya sendiri + full user info
- *   - User   => semua laporan + hanya menampilkan user.role
+ *   - Owner/Admin/User => semua laporan tanpa pengecualian
+ *   - User         => hanya lihat field user.role
+ *   - Owner/Admin  => lihat full user info
  */
 export async function getAllReports(req, res) {
   try {
-    // Cek izin dasar
-    if (!canViewAllReports(req.user.role)) {
+    const currentRole = req.user.role;
+
+    if (!canViewAllReports(currentRole)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Ambil SEMUA laporan, tanpa filter role
     const reports = await Report.findAll({
       order: [["createdAt", "DESC"]],
       include: [
         {
           model: db.User,
           as: "user",
-          attributes: ["id", "username", "role"], // tampilkan detail pembuat
+          attributes:
+            currentRole === "user" ? ["role"] : ["id", "username", "role"],
         },
       ],
     });
@@ -95,12 +95,14 @@ export async function getAllReports(req, res) {
 
 /**
  * GET single report by ID
- *   - Owner/Admin => full user info
- *   - User         => hanya user.role
+ *   - Owner/Admin/User => sesuai canViewReport
+ *   - User         => hanya field user.role
+ *   - Owner/Admin  => full user info
  */
 export async function getReportById(req, res) {
   try {
     const { reportId } = req.params;
+
     const report = await Report.findOne({
       where: { id: reportId },
       include: [
@@ -126,7 +128,6 @@ export async function getReportById(req, res) {
 
     const result = report.toJSON();
     if (currentUser.role === "user") {
-      // user hanya boleh melihat field role
       result.user = { role: result.user.role };
     }
 
@@ -202,6 +203,7 @@ export async function updateReport(req, res) {
 export async function deleteReport(req, res) {
   try {
     const { reportId } = req.params;
+
     const report = await Report.findByPk(reportId, {
       include: [
         {

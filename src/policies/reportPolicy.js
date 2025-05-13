@@ -8,24 +8,16 @@ export function canViewAllReports(currentUserRole) {
 
 /**
  * Cek apakah currentUser boleh melihat satu laporan tertentu.
- * – Owner & Admin: selalu boleh
- * – User: kini juga boleh melihat semua laporan
+ * – Owner, Admin, maupun User: semua boleh melihat tanpa pengecualian
  */
 export function canViewReport(
   currentUser,
   targetReportOwnerRole,
   targetReportOwnerId
 ) {
-  if (currentUser.role === "owner") {
-    return true;
-  }
-  if (currentUser.role === "admin") {
-    return true;
-  }
-  if (currentUser.role === "user") {
-    return true;
-  }
-  return false;
+  // Karena semua role (owner, admin, user) diizinkan melihat,
+  // kita cukup mengembalikan true jika role termasuk daftar yang boleh view all.
+  return canViewAllReports(currentUser.role);
 }
 
 /**
@@ -44,13 +36,7 @@ export function canUpdateReport(
   targetReportOwnerRole,
   targetReportOwnerId
 ) {
-  if (currentUser.role === "owner") {
-    return true;
-  }
-  if (currentUser.role === "admin") {
-    return true;
-  }
-  return false;
+  return ["owner", "admin"].includes(currentUser.role);
 }
 
 /**
