@@ -63,20 +63,21 @@ export async function createReport(req, res) {
 
 /**
  * GET all reports
- *   - Owner => semua laporan
- *   - Admin  => laporan milik role="user" + laporan dirinya sendiri
- *   - User   => semua laporan (view only)
+ *   - Owner => semua laporan + full user info
+ *   - Admin  => laporan milik role="user" + laporan dirinya sendiri + full user info
+ *   - User   => semua laporan + hanya menampilkan user.role
  */
 export async function getAllReports(req, res) {
   try {
     const userRole = req.user.role;
     const userId = req.user.id;
 
+    // cek hak akses
     if (!canViewAllReports(userRole)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // Base query options
+    // opsi dasar query
     const findOptions = {
       order: [["createdAt", "DESC"]],
       include: [
@@ -88,14 +89,24 @@ export async function getAllReports(req, res) {
       ],
     };
 
-    // Apply admin-specific filter
+    // filter khusus untuk admin
     if (userRole === "admin") {
       findOptions.include[0].where = {
         [db.Sequelize.Op.or]: [{ role: "user" }, { id: userId, role: "admin" }],
       };
     }
+    // override untuk user: hanya tampilkan role saja
+    else if (userRole === "user") {
+      findOptions.include = [
+        {
+          model: db.User,
+          as: "user",
+          attributes: ["role"],
+        },
+      ];
+    }
+    // owner: gunakan include default (id, username, role)
 
-    // owner and user see all (no additional where)
     const reports = await Report.findAll(findOptions);
     return res.json(reports);
   } catch (error) {
@@ -105,7 +116,9 @@ export async function getAllReports(req, res) {
 }
 
 /**
- * GET report by ID
+ * GET single report by ID
+ *   - Owner/Admin => full user info
+ *   - User         => hanya user.role
  */
 export async function getReportById(req, res) {
   try {
@@ -133,7 +146,13 @@ export async function getReportById(req, res) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    return res.json(report);
+    const result = report.toJSON();
+    if (currentUser.role === "user") {
+      // user hanya boleh melihat field role
+      result.user = { role: result.user.role };
+    }
+
+    return res.json(result);
   } catch (error) {
     logger.error(`Error in getReportById: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
