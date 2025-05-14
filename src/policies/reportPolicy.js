@@ -1,64 +1,40 @@
 /**
  * Siapa saja yang boleh melihat daftar semua laporan
- * – Owner, Admin, ataupun User
+ * – Owner, Admin, atau User
  */
-export function canViewAllReports(currentUserRole) {
-  return ["owner", "admin", "user"].includes(currentUserRole);
-}
+export const canViewAllReports = (role) =>
+  ["owner", "admin", "user"].includes(role);
 
 /**
- * Cek apakah currentUser boleh melihat satu laporan tertentu.
- * – Owner, Admin, maupun User: semua boleh melihat tanpa pengecualian
+ * Cek apakah current user boleh melihat satu laporan tertentu.
+ * Karena kita izinkan semua role lihat semua laporan,
+ * cukup delegasi ke canViewAllReports.
  */
-export function canViewReport(
-  currentUser,
-  targetReportOwnerRole,
-  targetReportOwnerId
-) {
-  // Karena semua role (owner, admin, user) diizinkan melihat,
-  // kita cukup mengembalikan true jika role termasuk daftar yang boleh view all.
-  return canViewAllReports(currentUser.role);
-}
+export const canViewReport = (role) =>
+  canViewAllReports(role);
 
 /**
  * Siapa saja yang boleh membuat laporan
  */
-export function canCreateReport(currentUserRole) {
-  return ["owner", "admin", "user"].includes(currentUserRole);
-}
+export const canCreateReport = (role) =>
+  ["owner", "admin", "user"].includes(role);
 
 /**
  * Siapa saja yang boleh memperbarui laporan
- * – Hanya Owner/Admin (bukan User)
+ * – Hanya Owner/Admin
  */
-export function canUpdateReport(
-  currentUser,
-  targetReportOwnerRole,
-  targetReportOwnerId
-) {
-  return ["owner", "admin"].includes(currentUser.role);
-}
+export const canUpdateReport = (role) =>
+  ["owner", "admin"].includes(role);
 
 /**
  * Siapa saja yang boleh menghapus laporan
  * – Sama dengan canUpdateReport
  */
-export function canDeleteReport(
-  currentUser,
-  targetReportOwnerRole,
-  targetReportOwnerId
-) {
-  return canUpdateReport(
-    currentUser,
-    targetReportOwnerRole,
-    targetReportOwnerId
-  );
-}
+export const canDeleteReport = canUpdateReport;
 
 /**
  * Siapa saja yang boleh mengubah status laporan ke 'selesai'
  * – Hanya Owner/Admin
  */
-export function canChangeReportStatus(currentUser) {
-  return ["owner", "admin"].includes(currentUser.role);
-}
+export const canChangeReportStatus = (role) =>
+  ["owner", "admin"].includes(role);
