@@ -1,3 +1,5 @@
+// src/controllers/reportController.js
+
 import db from "../models/index.js";
 import logger from "../middlewares/loggingMiddleware.js";
 import {
@@ -27,6 +29,7 @@ export async function createReport(req, res) {
     const { title, content, link } = req.body;
     const userId = req.user.id;
     let documentUrl = null;
+
     if (req.file) {
       documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
         req.file.filename
@@ -62,15 +65,15 @@ export async function createReport(req, res) {
 
 /**
  * GET all reports
- *   - Owner/Admin/User => semua laporan tanpa pengecualian
- *   - User         => hanya lihat field user.role
- *   - Owner/Admin  => lihat full user info
+ *   - Owner/Admin/User => semua laporan
+ *   - User              => hanya lihat field user.role
+ *   - Owner/Admin       => lihat full user info
  */
 export async function getAllReports(req, res) {
   try {
-    const currentRole = req.user.role;
+    const role = req.user.role;
 
-    if (!canViewAllReports(currentRole)) {
+    if (!canViewAllReports(role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -80,8 +83,7 @@ export async function getAllReports(req, res) {
         {
           model: db.User,
           as: "user",
-          attributes:
-            currentRole === "user" ? ["role"] : ["id", "username", "role"],
+          attributes: role === "user" ? ["role"] : ["id", "username", "role"],
         },
       ],
     });
@@ -95,9 +97,9 @@ export async function getAllReports(req, res) {
 
 /**
  * GET single report by ID
- *   - Owner/Admin/User => sesuai canViewReport
- *   - User         => hanya field user.role
- *   - Owner/Admin  => full user info
+ *   - Semua role boleh mengakses
+ *   - User hanya melihat field user.role
+ *   - Owner/Admin melihat full user info
  */
 export async function getReportById(req, res) {
   try {
@@ -118,16 +120,13 @@ export async function getReportById(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    const reportOwnerRole = report.user.role;
-    const reportOwnerId = report.user.id;
-    const currentUser = { id: req.user.id, role: req.user.role };
-
-    if (!canViewReport(currentUser, reportOwnerRole, reportOwnerId)) {
+    // Cek izin berdasarkan role saja
+    if (!canViewReport(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     const result = report.toJSON();
-    if (currentUser.role === "user") {
+    if (req.user.role === "user") {
       result.user = { role: result.user.role };
     }
 
@@ -161,11 +160,7 @@ export async function updateReport(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    const reportOwnerRole = report.user.role;
-    const reportOwnerId = report.user.id;
-    const currentUser = { id: req.user.id, role: req.user.role };
-
-    if (!canUpdateReport(currentUser, reportOwnerRole, reportOwnerId)) {
+    if (!canUpdateReport(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -218,11 +213,7 @@ export async function deleteReport(req, res) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    const reportOwnerRole = report.user.role;
-    const reportOwnerId = report.user.id;
-    const currentUser = { id: req.user.id, role: req.user.role };
-
-    if (!canDeleteReport(currentUser, reportOwnerRole, reportOwnerId)) {
+    if (!canDeleteReport(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
@@ -252,7 +243,7 @@ export async function archiveReportByStatus(req, res) {
         .status(400)
         .json({ message: "Status harus 'selesai' untuk arsip" });
     }
-    if (!canChangeReportStatus(req.user)) {
+    if (!canChangeReportStatus(req.user.role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
