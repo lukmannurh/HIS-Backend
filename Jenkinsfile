@@ -15,8 +15,8 @@ pipeline {
       steps {
         // Instalasi dependensi Node.js secara bersih
         sh 'npm ci'
-        // Menjalankan satu unit test dummy untuk memastikan pipeline bekerja
-        sh 'npm test -- src/tests/dummy.test.js'
+        // Menjalankan test untuk memastikan pipeline bekerja
+        sh 'npm test'
       }
     }
     stage('Pre-Deploy Cleanup') {
@@ -42,7 +42,7 @@ pipeline {
         }
         // 2) Relaunch container: jalankan ulang service API dengan Docker Compose
         dir("${DEPLOY_DIR}") {
-          sh 'docker-compose up -d --force-recreate api'
+          sh 'docker-compose up -d --build --force-recreate api'
         }
       }
     }
