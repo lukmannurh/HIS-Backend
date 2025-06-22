@@ -18,6 +18,8 @@ db.sequelize
   //   app.listen(PORT, '0.0.0.0', () => {
   //     logger.info(`Server berjalan di port ${PORT}`);
   //   });
+
+
   // })
 
   app.listen(PORT, () => {
@@ -28,3 +30,7 @@ db.sequelize
   .catch((err) => {
     logger.error("Error sinkronisasi database:", err);
   });
+
+
+
+  //
