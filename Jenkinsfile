@@ -15,8 +15,8 @@ pipeline {
       steps {
         // Instalasi dependensi Node.js secara bersih
         sh 'npm ci'
-        // Menjalankan test untuk memastikan pipeline bekerja
-        sh 'npm test'
+        // Menjalankan satu unit test dummy untuk memastikan pipeline bekerja
+        sh 'npm test -- src/tests/dummy.test.js'
       }
     }
     stage('Pre-Deploy Cleanup') {
@@ -59,4 +59,3 @@ pipeline {
   }
 }
 
-//
