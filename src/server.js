@@ -1,12 +1,12 @@
-import dotenv from "dotenv";
-dotenv.config();
+// import dotenv from "dotenv";
+// dotenv.config();
 
-import app from "./app.js";
-import db from "./models/index.js";
-import { createStarterAccounts } from "./utils/createStarterAccounts.js";
-import logger from "./middlewares/loggingMiddleware.js";
+// import app from "./app.js";
+// import db from "./models/index.js";
+// import { createStarterAccounts } from "./utils/createStarterAccounts.js";
+// import logger from "./middlewares/loggingMiddleware.js";
 
-const PORT = process.env.PORT || 3000;
+// const PORT = process.env.PORT || 3000;
 
 db.sequelize
   .sync()
