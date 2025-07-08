@@ -1,17 +1,20 @@
 /**
  * canRegisterUser:
- *   - Owner, Admin => boleh membuat user baru
- *   - User => tidak boleh
- *   - Unauthenticated => juga tidak boleh
+ * - Owner: hanya dapat membuat akun dengan role "admin"
+ * - Admin: hanya dapat membuat akun dengan role "user"
+ * - User atau tidak terautentikasi: tidak dapat membuat akun
+ *
+ * @param {object} currentUser    Objek user yang sedang login (id, role)
+ * @param {string} newUserRole    Role yang diinginkan untuk user baru
+ * @returns {boolean}
  */
-export function canRegisterUser(currentUser) {
-  // currentUser bisa saja { id, role } atau mungkin undefined jika belum login
-  if (!currentUser) {
-    // kalau user tidak login => false
-    return false;
+export function canRegisterUser(currentUser, newUserRole) {
+  if (!currentUser) return false;
+  if (currentUser.role === "owner") {
+    return newUserRole === "admin";
   }
-  if (currentUser.role === "owner" || currentUser.role === "admin") {
-    return true;
+  if (currentUser.role === "admin") {
+    return newUserRole === "user";
   }
   return false;
 }

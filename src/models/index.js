@@ -5,7 +5,7 @@ import logger from "../middlewares/loggingMiddleware.js";
 import defineUser from "./user.js";
 import defineReport from "./report.js";
 import defineRefreshToken from "./refreshToken.js";
-import defineArchivedReport from "./archivedReport.js"; 
+import defineArchivedReport from "./archivedReport.js";
 
 dotenv.config();
 
@@ -30,39 +30,45 @@ sequelize
     logger.error("Koneksi ke database gagal:", err);
   });
 
+// Define semua model
 const User = defineUser(sequelize);
 const Report = defineReport(sequelize);
 const RefreshToken = defineRefreshToken(sequelize);
 const ArchivedReport = defineArchivedReport(sequelize);
 
-User.hasMany(Report, {
-  foreignKey: "userId",
-  as: "reports",
-});
-Report.belongsTo(User, {
-  foreignKey: "userId",
-  as: "user",
-});
+// Kumpulkan models dalam satu objek
+const models = {
+  User,
+  Report,
+  RefreshToken,
+  ArchivedReport,
+};
 
-// Relasi untuk refresh token
+// Jalankan associate() di setiap model yang memiliki method associate
+Object.values(models)
+  .filter((model) => typeof model.associate === "function")
+  .forEach((model) => model.associate(models));
+
+// Jika RefreshToken tidak memiliki associate, buat relasi manual:
+// Setiap RefreshToken milik satu User, dan satu User bisa punya banyak RefreshToken
 RefreshToken.belongsTo(User, {
   foreignKey: "userId",
   as: "user",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
 });
-
-// Relasi untuk arsip: agar bisa mengakses data user pemilik arsip
-ArchivedReport.belongsTo(User, {
+User.hasMany(RefreshToken, {
   foreignKey: "userId",
-  as: "user",
+  as: "refreshTokens",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
 });
 
-const db = {};
-db.Sequelize = Sequelize;
-db.sequelize = sequelize;
-db.User = User;
-db.Report = Report;
-db.RefreshToken = RefreshToken;
-db.ArchivedReport = ArchivedReport;
+const db = {
+  Sequelize,
+  sequelize,
+  ...models,
+};
 
 export { User, Report, RefreshToken, ArchivedReport };
 export default db;

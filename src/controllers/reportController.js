@@ -1,5 +1,3 @@
-// src/controllers/reportController.js
-
 import db from "../models/index.js";
 import logger from "../middlewares/loggingMiddleware.js";
 import {
@@ -17,19 +15,19 @@ const ArchivedReport = db.ArchivedReport;
 
 /**
  * CREATE report
+ * – Hanya User yang boleh membuat
  */
 export async function createReport(req, res) {
   try {
     if (!canCreateReport(req.user.role)) {
       return res
         .status(403)
-        .json({ message: "Forbidden: cannot create report" });
+        .json({ message: "Forbidden: only users can create reports" });
     }
 
     const { title, content, link } = req.body;
     const userId = req.user.id;
     let documentUrl = null;
-
     if (req.file) {
       documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
         req.file.filename
@@ -65,19 +63,24 @@ export async function createReport(req, res) {
 
 /**
  * GET all reports
- *   - Owner/Admin/User => semua laporan
- *   - User              => hanya lihat field user.role
- *   - Owner/Admin       => lihat full user info
+ * – Admin: lihat semua laporan
+ * – User: lihat hanya laporan miliknya sendiri
  */
 export async function getAllReports(req, res) {
   try {
     const role = req.user.role;
+    const userId = req.user.id;
 
     if (!canViewAllReports(role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: cannot view reports" });
     }
 
+    const where = role === "user" ? { userId } : {};
+
     const reports = await Report.findAll({
+      where,
       order: [["createdAt", "DESC"]],
       include: [
         {
@@ -97,32 +100,36 @@ export async function getAllReports(req, res) {
 
 /**
  * GET single report by ID
- *   - Semua role boleh mengakses
- *   - User hanya melihat field user.role
- *   - Owner/Admin melihat full user info
+ * – Admin: bisa lihat semua
+ * – User: hanya bisa lihat laporannya sendiri
  */
 export async function getReportById(req, res) {
   try {
     const { reportId } = req.params;
 
+    if (!canViewReport(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden: cannot view report" });
+    }
+
     const report = await Report.findOne({
       where: { id: reportId },
       include: [
-        {
-          model: db.User,
-          as: "user",
-          attributes: ["id", "username", "role"],
-        },
+        { model: db.User, as: "user", attributes: ["id", "username", "role"] },
       ],
     });
-
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    // Cek izin berdasarkan role saja
-    if (!canViewReport(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+    // Owner dilarang
+    if (req.user.role === "owner") {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: owner cannot view reports" });
+    }
+    // User hanya bisa lihat miliknya
+    if (req.user.role === "user" && report.userId !== req.user.id) {
+      return res.status(403).json({ message: "Forbidden: not your report" });
     }
 
     const result = report.toJSON();
@@ -138,30 +145,23 @@ export async function getReportById(req, res) {
 }
 
 /**
- * UPDATE report
+ * UPDATE report content
+ * – Hanya Admin
  */
 export async function updateReport(req, res) {
   try {
     const { reportId } = req.params;
     const { title, content, link } = req.body;
 
-    const report = await Report.findOne({
-      where: { id: reportId },
-      include: [
-        {
-          model: db.User,
-          as: "user",
-          attributes: ["id", "role"],
-        },
-      ],
-    });
-
-    if (!report) {
-      return res.status(404).json({ message: "Report tidak ditemukan" });
+    if (!canUpdateReport(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: only admin can update reports" });
     }
 
-    if (!canUpdateReport(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+    const report = await Report.findOne({ where: { id: reportId } });
+    if (!report) {
+      return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
     if (title !== undefined) report.title = title;
@@ -178,7 +178,7 @@ export async function updateReport(req, res) {
 
     await report.save();
 
-    logger.info(`Report updated by user ID: ${req.user.id}`, {
+    logger.info(`Report updated by admin ID: ${req.user.id}`, {
       timestamp: new Date().toISOString(),
     });
 
@@ -194,32 +194,26 @@ export async function updateReport(req, res) {
 
 /**
  * DELETE report
+ * – Hanya Admin
  */
 export async function deleteReport(req, res) {
   try {
     const { reportId } = req.params;
 
-    const report = await Report.findByPk(reportId, {
-      include: [
-        {
-          model: db.User,
-          as: "user",
-          attributes: ["id", "username", "role"],
-        },
-      ],
-    });
+    if (!canDeleteReport(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: only admin can delete reports" });
+    }
 
+    const report = await Report.findByPk(reportId);
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    if (!canDeleteReport(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
     await report.destroy();
 
-    logger.info(`Report deleted by user ID: ${req.user.id}`, {
+    logger.info(`Report deleted by admin ID: ${req.user.id}`, {
       timestamp: new Date().toISOString(),
     });
 
@@ -232,6 +226,7 @@ export async function deleteReport(req, res) {
 
 /**
  * ARCHIVE report (change status to "selesai")
+ * – Hanya Admin
  */
 export async function archiveReportByStatus(req, res) {
   try {
@@ -244,7 +239,9 @@ export async function archiveReportByStatus(req, res) {
         .json({ message: "Status harus 'selesai' untuk arsip" });
     }
     if (!canChangeReportStatus(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: only admin can archive reports" });
     }
 
     const report = await Report.findOne({ where: { id: reportId } });
@@ -261,11 +258,10 @@ export async function archiveReportByStatus(req, res) {
       relatedNews: report.relatedNews,
       userId: report.userId,
     });
-
     await report.destroy();
 
     logger.info(
-      `Report dengan ID ${reportId} telah diarsipkan oleh user ${req.user.id}`
+      `Report dengan ID ${reportId} telah diarsipkan oleh admin ${req.user.id}`
     );
 
     return res.json({ message: "Laporan berhasil diarsipkan" });

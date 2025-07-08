@@ -1,40 +1,35 @@
 /**
- * Siapa saja yang boleh melihat daftar semua laporan
- * – Owner, Admin, atau User
+ * Siapa saja yang boleh melihat daftar laporan
+ * – Admin dan User (User nanti di-controller hanya dapat melihat miliknya)
  */
-export const canViewAllReports = (role) =>
-  ["owner", "admin", "user"].includes(role);
+export const canViewAllReports = (role) => role === "admin" || role === "user";
 
 /**
  * Cek apakah current user boleh melihat satu laporan tertentu.
- * Karena kita izinkan semua role lihat semua laporan,
- * cukup delegasi ke canViewAllReports.
+ * – Admin dan User (User nanti di-controller hanya dapat melihat miliknya)
  */
-export const canViewReport = (role) =>
-  canViewAllReports(role);
+export const canViewReport = (role) => role === "admin" || role === "user";
 
 /**
  * Siapa saja yang boleh membuat laporan
+ * – Hanya User
  */
-export const canCreateReport = (role) =>
-  ["owner", "admin", "user"].includes(role);
+export const canCreateReport = (role) => role === "user";
 
 /**
  * Siapa saja yang boleh memperbarui laporan
- * – Hanya Owner/Admin
+ * – Hanya Admin
  */
-export const canUpdateReport = (role) =>
-  ["owner", "admin"].includes(role);
+export const canUpdateReport = (role) => role === "admin";
 
 /**
  * Siapa saja yang boleh menghapus laporan
- * – Sama dengan canUpdateReport
+ * – Hanya Admin
  */
-export const canDeleteReport = canUpdateReport;
+export const canDeleteReport = (role) => role === "admin";
 
 /**
  * Siapa saja yang boleh mengubah status laporan ke 'selesai'
- * – Hanya Owner/Admin
+ * – Hanya Admin
  */
-export const canChangeReportStatus = (role) =>
-  ["owner", "admin"].includes(role);
+export const canChangeReportStatus = (role) => role === "admin";

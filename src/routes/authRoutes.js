@@ -20,17 +20,23 @@ const router = express.Router();
  */
 router.post(
   "/register",
-  authMiddleware,
+  authMiddleware, // hanya Owner/Admin
   [
-    body("username").isString().notEmpty().withMessage("Username wajib diisi"),
-    body("email").isEmail().withMessage("Email harus valid"),
+    body("username")
+      .isString().notEmpty().withMessage("Username wajib diisi"),
+    body("email")
+      .isEmail().withMessage("Email harus valid"),
+    body("fullName")
+      .isString().notEmpty().withMessage("Full name wajib diisi"),
     body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password min 6 karakter"),
-    body("role")
-      .optional()
-      .isIn(["admin", "owner", "user"])
-      .withMessage("Role harus salah satu dari: admin, owner, user"),
+      .isLength({ min: 6 }).withMessage("Password min 6 karakter"),
+    body("rt")
+      .isInt({ min: 1, max: 10 })
+      .withMessage("RT harus berupa angka antara 1 dan 10"),
+    body("rw")
+      .isInt()
+      .isIn([13, 16])
+      .withMessage("RW hanya boleh 13 atau 16"),
   ],
   validationMiddleware,
   register

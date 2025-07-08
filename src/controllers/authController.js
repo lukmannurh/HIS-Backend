@@ -8,46 +8,67 @@ import { canRegisterUser } from "../policies/authPolicy.js";
 
 /**
  * REGISTER Controller
- * - Hanya Owner dan Admin yang dapat membuat akun.
- * - Owner dapat memilih role "admin" atau "user".
- * - Admin hanya dapat membuat akun dengan role "user".
+ * - Hanya Owner/Admin
+ * - Owner → role='admin', Admin → role='user'
+ * - Wajib: username, email, fullName, password, rt, rw
  */
 export const register = async (req, res) => {
   try {
-    const currentUser = req.user; // authMiddleware diharapkan sudah menetapkan req.user
-    let { username, email, fullName, password, role } = req.body;
+    const currentUser = req.user;
+    const { username, email, fullName, password, rt, rw } = req.body;
 
     // Validasi field wajib
-    if (!username || !email || !fullName || !password) {
+    if (
+      !username ||
+      !email ||
+      !fullName ||
+      !password ||
+      rt == null ||
+      rw == null
+    ) {
       return res.status(400).json({
-        message: "Username, email, full name, and password are required"
+        message: "Username, email, fullName, password, RT, dan RW wajib diisi",
       });
     }
 
-    // Jika role tidak diberikan, default ke "user"
-    if (!role) {
-      role = "user";
+    // Tentukan role baru
+    let newRole;
+    if (currentUser.role === "owner") {
+      newRole = "admin";
+    } else if (currentUser.role === "admin") {
+      newRole = "user";
+    } else {
+      return res.status(403).json({ message: "Forbidden: tidak diizinkan" });
     }
 
-    // Cek kebijakan pendaftaran
-    if (!canRegisterUser(currentUser, role)) {
+    // Policy check (meski sudah tercakup di atas)
+    if (!canRegisterUser(currentUser, newRole)) {
       return res.status(403).json({
-        message:
-          "Forbidden: Anda tidak diizinkan membuat akun dengan role tersebut"
+        message: "Forbidden: Anda tidak diizinkan membuat akun dengan role ini",
       });
     }
 
-    const user = await registerUser({ username, email, fullName, password, role });
+    const user = await registerUser({
+      username,
+      email,
+      fullName,
+      password,
+      role: newRole,
+      rt,
+      rw,
+    });
+
     return res.status(201).json({
       message: "User berhasil dibuat",
       data: user,
     });
   } catch (error) {
     console.error("Error in register controller:", error);
-    return res.status(error.status || 500).json({ message: error.message || "Internal server error" });
+    return res
+      .status(error.status || 500)
+      .json({ message: error.message || "Internal server error" });
   }
 };
-
 
 /**
  * LOGIN Controller

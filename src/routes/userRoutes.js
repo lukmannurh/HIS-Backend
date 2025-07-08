@@ -87,39 +87,38 @@ router.put(
     body("password")
       .optional()
       .isLength({ min: 6 })
-      .withMessage("Password harus minimal 6 karakter"),
-    body("fullName")
-      .optional()
-      .isString()
-      .withMessage("FullName harus berupa string"),
-    body("address")
-      .optional()
-      .isString()
-      .withMessage("Address harus berupa string"),
+      .withMessage("Password minimal 6 karakter"),
+    body("fullName").optional().isString().withMessage("FullName harus string"),
+    body("address").optional().isString().withMessage("Address harus string"),
     body("age")
       .optional()
       .isInt({ min: 0 })
-      .withMessage("Age harus berupa integer positif"),
+      .withMessage("Age harus integer positif"),
     body("gender")
       .optional()
       .isIn(["Pria", "Wanita"])
-      .withMessage("Gender harus berupa 'Pria' atau 'Wanita'"),
+      .withMessage("Gender harus 'Pria' atau 'Wanita'"),
     body("email").optional().isEmail().withMessage("Email harus valid"),
+    body("rt")
+      .optional()
+      .isInt({ min: 1, max: 10 })
+      .withMessage("RT harus antara 1 dan 10"),
+    body("rw")
+      .optional()
+      .isInt()
+      .isIn([13, 16])
+      .withMessage("RW harus 13 atau 16"),
   ],
   validationMiddleware,
   userController.updateProfile
 );
 
-// Route untuk mengubah role user (hanya Owner)
+// Owner-only: ubah role
 router.put(
   "/:userId/role",
   authMiddleware,
-  ownerMiddleware, // Pastikan hanya owner yang dapat mengakses
-  [
-    body("role")
-      .isIn(["admin", "user"])
-      .withMessage("Role harus berupa 'admin' atau 'user'"),
-  ],
+  ownerMiddleware,
+  [param("userId").isUUID().withMessage("User ID harus UUID")],
   validationMiddleware,
   userController.updateUserRole
 );
