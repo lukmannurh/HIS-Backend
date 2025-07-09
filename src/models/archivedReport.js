@@ -16,6 +16,16 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: false,
       },
+      // Link eksternal (opsional)
+      link: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      // URL/path ke file gambar/video
+      document: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       validationStatus: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -29,11 +39,12 @@ export default (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
-      // Salin juga URL/path file gambar/video
-      document: {
+      // Salin penjelasan admin juga
+      adminExplanation: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      // Pemilik laporan (FK ke Users)
       userId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -41,9 +52,10 @@ export default (sequelize) => {
           model: "Users",
           key: "id",
         },
-        onUpdate: "CASCADE",
         onDelete: "CASCADE",
+        onUpdate: "CASCADE",
       },
+      // Waktu arsip
       archivedAt: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -56,7 +68,6 @@ export default (sequelize) => {
     }
   );
 
-  // Association (opsional, jika diperlukan)
   ArchivedReport.associate = (models) => {
     ArchivedReport.belongsTo(models.User, {
       foreignKey: "userId",

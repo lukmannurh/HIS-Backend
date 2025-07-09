@@ -17,6 +17,11 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: false,
       },
+      // Link eksternal (opsional)
+      link: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       validationStatus: {
         type: DataTypes.ENUM("valid", "hoax", "diragukan"),
         defaultValue: "diragukan",
@@ -34,7 +39,7 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      // Foreign key ke Users.id, wajib diisi
+      // Foreign key ke Users.id
       userId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -45,6 +50,30 @@ export default (sequelize) => {
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
+
+      // ======== Fitur Baru ========
+      // Status bisnis laporan
+      reportStatus: {
+        type: DataTypes.ENUM("diproses", "selesai"),
+        allowNull: false,
+        defaultValue: "diproses",
+      },
+      // Penjelasan admin saat mengubah status menjadi 'selesai'
+      adminExplanation: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      // Opsi auto-arsip
+      autoArchive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      // Threshold untuk auto-arsip: '1month', '3month', '6month', '1year'
+      archiveThreshold: {
+        type: DataTypes.ENUM("1month", "3month", "6month", "1year"),
+        allowNull: true,
+      },
     },
     {
       tableName: "Reports",
@@ -52,7 +81,6 @@ export default (sequelize) => {
     }
   );
 
-  // Association
   Report.associate = (models) => {
     Report.belongsTo(models.User, {
       foreignKey: "userId",

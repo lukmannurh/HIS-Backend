@@ -4,9 +4,10 @@ import {
   createReport,
   getAllReports,
   getReportById,
-  updateReport,
+  updateReportStatus,
   deleteReport,
-  archiveReportByStatus,
+  archiveReport,
+  autoArchiveReports,
 } from "../controllers/reportController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/upload.js";
@@ -39,6 +40,7 @@ router.post(
  * GET /reports
  * – Admin: semua laporan
  * – User: hanya laporan miliknya sendiri
+ * – Dukung filter ?period=day|week|month|year
  */
 router.get("/", authMiddleware, getAllReports);
 
@@ -56,25 +58,31 @@ router.get(
 );
 
 /**
- * PUT /reports/:reportId
- * – Hanya Admin yang boleh update
- * – Upload baru di field "media" opsional
+ * PUT /reports/:reportId/status
+ * – Hanya Admin yang boleh mengubah status
+ * – reportStatus wajib "diproses" atau "selesai"
+ * – Jika "selesai", adminExplanation wajib diisi
+ * – validationStatus opsional
  */
 router.put(
-  "/:reportId",
+  "/:reportId/status",
   authMiddleware,
-  upload.single("media"),
   [
     param("reportId").isUUID().withMessage("ID laporan harus UUID valid"),
-    body("title").optional().isString().withMessage("Title harus string"),
-    body("content").optional().isString().withMessage("Content harus string"),
-    body("link")
+    body("reportStatus")
+      .isIn(["diproses", "selesai"])
+      .withMessage("reportStatus harus 'diproses' atau 'selesai'"),
+    body("adminExplanation")
+      .if(body("reportStatus").equals("selesai"))
+      .notEmpty()
+      .withMessage("adminExplanation wajib diisi saat selesai"),
+    body("validationStatus")
       .optional()
-      .isURL()
-      .withMessage("Link harus URL valid jika diisi"),
+      .isIn(["valid", "hoax", "diragukan"])
+      .withMessage("validationStatus harus 'valid','hoax', atau 'diragukan'"),
   ],
   validationMiddleware,
-  updateReport
+  updateReportStatus
 );
 
 /**
@@ -90,20 +98,32 @@ router.delete(
 );
 
 /**
- * PUT /reports/:reportId/status
- * – Hanya Admin yang boleh arsipkan (status 'selesai')
+ * PUT /reports/:reportId/archive
+ * – Hanya Admin yang boleh arsipkan secara manual
  */
 router.put(
-  "/:reportId/status",
+  "/:reportId/archive",
+  authMiddleware,
+  [param("reportId").isUUID().withMessage("ID laporan harus UUID valid")],
+  validationMiddleware,
+  archiveReport
+);
+
+/**
+ * POST /reports/archive/auto
+ * – Hanya Admin yang boleh auto-archive
+ * – threshold wajib salah satu dari '1month','3month','6month','1year'
+ */
+router.post(
+  "/archive/auto",
   authMiddleware,
   [
-    param("reportId").isUUID().withMessage("ID laporan harus UUID valid"),
-    body("status")
-      .equals("selesai")
-      .withMessage("Status harus 'selesai' untuk arsip"),
+    body("threshold")
+      .isIn(["1month", "3month", "6month", "1year"])
+      .withMessage("threshold harus '1month','3month','6month', atau '1year'"),
   ],
   validationMiddleware,
-  archiveReportByStatus
+  autoArchiveReports
 );
 
 export default router;

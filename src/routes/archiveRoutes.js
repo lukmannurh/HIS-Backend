@@ -1,32 +1,43 @@
 import express from "express";
-import { getAllArchives, getArchiveById, deleteArchive } from "../controllers/archiveController.js";
-import authMiddleware from "../middlewares/authMiddleware.js";
 import { param } from "express-validator";
+import {
+  getAllArchives,
+  getArchiveById,
+  deleteArchive,
+} from "../controllers/archiveController.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
 import { validationMiddleware } from "../middlewares/validationMiddleware.js";
 
 const router = express.Router();
 
-// GET semua arsip
+/**
+ * GET /archives
+ * – Owner/Admin: semua arsip
+ * – User: hanya arsip miliknya
+ */
 router.get("/", authMiddleware, getAllArchives);
 
-// GET arsip berdasarkan ID
+/**
+ * GET /archives/:archiveId
+ * – Owner/Admin: semua
+ * – User: hanya miliknya
+ */
 router.get(
   "/:archiveId",
   authMiddleware,
-  [
-    param("archiveId").isString().notEmpty().withMessage("Archive ID harus diisi")
-  ],
+  [param("archiveId").isUUID().withMessage("Archive ID harus UUID valid")],
   validationMiddleware,
   getArchiveById
 );
 
-// DELETE arsip (Owner saja)
+/**
+ * DELETE /archives/:archiveId
+ * – Hanya Owner yang boleh menghapus arsip
+ */
 router.delete(
   "/:archiveId",
   authMiddleware,
-  [
-    param("archiveId").isString().notEmpty().withMessage("Archive ID harus diisi")
-  ],
+  [param("archiveId").isUUID().withMessage("Archive ID harus UUID valid")],
   validationMiddleware,
   deleteArchive
 );

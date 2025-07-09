@@ -1,21 +1,23 @@
 import db from "../models/index.js";
 import logger from "../middlewares/loggingMiddleware.js";
+import { Op } from "sequelize";
 import {
   canViewAllReports,
   canViewReport,
   canCreateReport,
-  canUpdateReport,
-  canDeleteReport,
   canChangeReportStatus,
+  canDeleteReport,
+  canArchiveReport,
+  canAutoArchive,
 } from "../policies/reportPolicy.js";
 import { checkHoax } from "../services/hoaxChecker.js";
 
-const Report = db.Report;
-const ArchivedReport = db.ArchivedReport;
+const { Report, ArchivedReport, User } = db;
 
 /**
  * CREATE report
- * – Hanya User yang boleh membuat
+ * – Hanya User
+ * – Default reportStatus = 'diproses'
  */
 export async function createReport(req, res) {
   try {
@@ -27,12 +29,9 @@ export async function createReport(req, res) {
 
     const { title, content, link } = req.body;
     const userId = req.user.id;
-    let documentUrl = null;
-    if (req.file) {
-      documentUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
-    }
+    const documentUrl = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : null;
 
     const { validationStatus, validationDetails, relatedNews } =
       await checkHoax(content, link, documentUrl);
@@ -40,21 +39,19 @@ export async function createReport(req, res) {
     const newReport = await Report.create({
       title,
       content,
+      link,
       userId,
+      document: documentUrl,
       validationStatus,
       validationDetails,
       relatedNews,
-      document: documentUrl,
+      // reportStatus, adminExplanation, autoArchive, archiveThreshold use defaults
     });
 
-    logger.info(`Report created by user ID: ${userId}`, {
-      timestamp: new Date().toISOString(),
-    });
-
-    return res.status(201).json({
-      message: "Report berhasil dibuat",
-      data: newReport,
-    });
+    logger.info(`Report created by user ${userId}`);
+    return res
+      .status(201)
+      .json({ message: "Report berhasil dibuat", data: newReport });
   } catch (error) {
     logger.error(`Error in createReport: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
@@ -63,34 +60,47 @@ export async function createReport(req, res) {
 
 /**
  * GET all reports
- * – Admin: lihat semua laporan
- * – User: lihat hanya laporan miliknya sendiri
+ * – Admin: semua laporan
+ * – User: hanya laporan miliknya sendiri
+ * – Dukung filter ?period=day|week|month|year
  */
 export async function getAllReports(req, res) {
   try {
-    const role = req.user.role;
-    const userId = req.user.id;
-
+    const { role, id: userId } = req.user;
     if (!canViewAllReports(role)) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: cannot view reports" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const where = role === "user" ? { userId } : {};
+    const where = {};
+    if (role === "user") where.userId = userId;
+
+    const { period } = req.query;
+    if (period) {
+      const now = new Date();
+      let start;
+      switch (period) {
+        case "day":
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case "week":
+          start = new Date(now);
+          start.setDate(now.getDate() - now.getDay());
+          break;
+        case "month":
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case "year":
+          start = new Date(now.getFullYear(), 0, 1);
+          break;
+      }
+      if (start) where.createdAt = { [Op.gte]: start };
+    }
 
     const reports = await Report.findAll({
       where,
       order: [["createdAt", "DESC"]],
-      include: [
-        {
-          model: db.User,
-          as: "user",
-          attributes: role === "user" ? ["role"] : ["id", "username", "role"],
-        },
-      ],
+      include: [{ model: User, as: "user", attributes: ["id", "username"] }],
     });
-
     return res.json(reports);
   } catch (error) {
     logger.error(`Error in getAllReports: ${error.message}`);
@@ -99,45 +109,28 @@ export async function getAllReports(req, res) {
 }
 
 /**
- * GET single report by ID
- * – Admin: bisa lihat semua
- * – User: hanya bisa lihat laporannya sendiri
+ * GET report by ID
+ * – Admin: semua
+ * – User: hanya miliknya
  */
 export async function getReportById(req, res) {
   try {
-    const { reportId } = req.params;
-
-    if (!canViewReport(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden: cannot view report" });
+    const { role, id: userId } = req.user;
+    if (!canViewReport(role)) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const report = await Report.findOne({
-      where: { id: reportId },
-      include: [
-        { model: db.User, as: "user", attributes: ["id", "username", "role"] },
-      ],
+    const report = await Report.findByPk(req.params.reportId, {
+      include: [{ model: User, as: "user", attributes: ["id", "username"] }],
     });
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
-
-    // Owner dilarang
-    if (req.user.role === "owner") {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: owner cannot view reports" });
-    }
-    // User hanya bisa lihat miliknya
-    if (req.user.role === "user" && report.userId !== req.user.id) {
+    if (role === "user" && report.userId !== userId) {
       return res.status(403).json({ message: "Forbidden: not your report" });
     }
 
-    const result = report.toJSON();
-    if (req.user.role === "user") {
-      result.user = { role: result.user.role };
-    }
-
-    return res.json(result);
+    return res.json(report);
   } catch (error) {
     logger.error(`Error in getReportById: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
@@ -145,49 +138,45 @@ export async function getReportById(req, res) {
 }
 
 /**
- * UPDATE report content
+ * UPDATE report status & optional validationStatus
  * – Hanya Admin
+ * – reportStatus wajib 'diproses'| 'selesai'
+ * – Jika 'selesai', adminExplanation wajib
  */
-export async function updateReport(req, res) {
+export async function updateReportStatus(req, res) {
   try {
-    const { reportId } = req.params;
-    const { title, content, link } = req.body;
-
-    if (!canUpdateReport(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: only admin can update reports" });
+    if (!canChangeReportStatus(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const report = await Report.findOne({ where: { id: reportId } });
+    const { reportStatus, adminExplanation, validationStatus } = req.body;
+    if (!["diproses", "selesai"].includes(reportStatus)) {
+      return res.status(400).json({ message: "Invalid reportStatus" });
+    }
+    if (reportStatus === "selesai" && !adminExplanation) {
+      return res
+        .status(400)
+        .json({ message: "adminExplanation wajib diisi saat selesai" });
+    }
+
+    const report = await Report.findByPk(req.params.reportId);
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
-    if (title !== undefined) report.title = title;
-    if (content !== undefined) report.content = content;
-    if (link !== undefined) report.link = link;
-
-    if (content !== undefined || link !== undefined) {
-      const { validationStatus, validationDetails, relatedNews } =
-        await checkHoax(report.content, report.link);
+    report.reportStatus = reportStatus;
+    report.adminExplanation = adminExplanation;
+    if (
+      validationStatus &&
+      ["valid", "hoax", "diragukan"].includes(validationStatus)
+    ) {
       report.validationStatus = validationStatus;
-      report.validationDetails = validationDetails;
-      report.relatedNews = relatedNews;
     }
-
     await report.save();
 
-    logger.info(`Report updated by admin ID: ${req.user.id}`, {
-      timestamp: new Date().toISOString(),
-    });
-
-    return res.json({
-      message: "Report berhasil diupdate",
-      data: report,
-    });
+    return res.json({ message: "Status updated", data: report });
   } catch (error) {
-    logger.error(`Error in updateReport: ${error.message}`);
+    logger.error(`Error in updateReportStatus: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -198,25 +187,16 @@ export async function updateReport(req, res) {
  */
 export async function deleteReport(req, res) {
   try {
-    const { reportId } = req.params;
-
     if (!canDeleteReport(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: only admin can delete reports" });
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const report = await Report.findByPk(reportId);
+    const report = await Report.findByPk(req.params.reportId);
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
 
     await report.destroy();
-
-    logger.info(`Report deleted by admin ID: ${req.user.id}`, {
-      timestamp: new Date().toISOString(),
-    });
-
     return res.json({ message: "Report berhasil dihapus" });
   } catch (error) {
     logger.error(`Error in deleteReport: ${error.message}`);
@@ -225,26 +205,16 @@ export async function deleteReport(req, res) {
 }
 
 /**
- * ARCHIVE report (change status to "selesai")
+ * ARCHIVE report manually
  * – Hanya Admin
  */
-export async function archiveReportByStatus(req, res) {
+export async function archiveReport(req, res) {
   try {
-    const { reportId } = req.params;
-    const { status } = req.body;
-
-    if (status !== "selesai") {
-      return res
-        .status(400)
-        .json({ message: "Status harus 'selesai' untuk arsip" });
-    }
-    if (!canChangeReportStatus(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: only admin can archive reports" });
+    if (!canArchiveReport(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const report = await Report.findOne({ where: { id: reportId } });
+    const report = await Report.findByPk(req.params.reportId);
     if (!report) {
       return res.status(404).json({ message: "Report tidak ditemukan" });
     }
@@ -253,20 +223,79 @@ export async function archiveReportByStatus(req, res) {
       id: report.id,
       title: report.title,
       content: report.content,
+      link: report.link,
+      document: report.document,
       validationStatus: report.validationStatus,
       validationDetails: report.validationDetails,
       relatedNews: report.relatedNews,
       userId: report.userId,
+      adminExplanation: report.adminExplanation,
+      archivedAt: new Date(),
     });
     await report.destroy();
 
-    logger.info(
-      `Report dengan ID ${reportId} telah diarsipkan oleh admin ${req.user.id}`
-    );
-
     return res.json({ message: "Laporan berhasil diarsipkan" });
   } catch (error) {
-    logger.error(`Error in archiveReportByStatus: ${error.message}`);
+    logger.error(`Error in archiveReport: ${error.message}`);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+/**
+ * AUTO-ARCHIVE reports
+ * – Hanya Admin
+ * – threshold in { '1month','3month','6month','1year' }
+ */
+export async function autoArchiveReports(req, res) {
+  try {
+    if (!canAutoArchive(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { threshold } = req.body;
+    const now = new Date();
+    const cutoff = new Date(now);
+    switch (threshold) {
+      case "1month":
+        cutoff.setMonth(now.getMonth() - 1);
+        break;
+      case "3month":
+        cutoff.setMonth(now.getMonth() - 3);
+        break;
+      case "6month":
+        cutoff.setMonth(now.getMonth() - 6);
+        break;
+      case "1year":
+        cutoff.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid threshold" });
+    }
+
+    const toArchive = await Report.findAll({
+      where: { reportStatus: "selesai", updatedAt: { [Op.lte]: cutoff } },
+    });
+
+    for (const rep of toArchive) {
+      await ArchivedReport.create({
+        id: rep.id,
+        title: rep.title,
+        content: rep.content,
+        link: rep.link,
+        document: rep.document,
+        validationStatus: rep.validationStatus,
+        validationDetails: rep.validationDetails,
+        relatedNews: rep.relatedNews,
+        userId: rep.userId,
+        adminExplanation: rep.adminExplanation,
+        archivedAt: new Date(),
+      });
+      await rep.destroy();
+    }
+
+    return res.json({ message: `Auto-archived ${toArchive.length} reports` });
+  } catch (error) {
+    logger.error(`Error in autoArchiveReports: ${error.message}`);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
